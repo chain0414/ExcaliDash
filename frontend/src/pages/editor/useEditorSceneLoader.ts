@@ -3,7 +3,7 @@ import type { NavigateFunction } from "react-router-dom";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 import * as api from "../../api";
-import { rehydrateFilesProgressive } from "../../utils/rehydrateFiles";
+import { prepareExportFiles } from "../../utils/exportUtils";
 import { getPersistedAppState, hasRenderableElements } from "./shared";
 
 type AccessLevel = "none" | "view" | "edit" | "owner";
@@ -142,15 +142,11 @@ export const useEditorSceneLoader = ({
             : "owner",
         );
         const rawElements = data.elements || [];
-        // Paint first, stream images in. In S3 (or db-ref) mode the loaded
-        // files carry `/api/files/...` (or public S3) references rather than
-        // inline data: URLs. We no longer await re-inlining before the first
-        // paint — the scene renders immediately with whatever is inline and the
-        // referenced files stream into the canvas as each fetch lands. Inline
-        // image elements are flipped to `saved` so they render at once; ref-only
-        // elements stay non-saved and show Excalidraw's own loading state until
-        // their bytes arrive.
-        const files: Record<string, any> = data.files || {};
+        // Excalidraw's built-in image export expects inline image bytes. Do not
+        // give it server refs even briefly: exporting before progressive file
+        // loading finishes otherwise reaches atob() with `/api/files/...`.
+        const files = await prepareExportFiles(data.files || {}, rawElements);
+        if (cancelled) return;
         const elements = normalizeImageElementStatus(rawElements, files);
         const hasPreview =
           typeof data.preview === "string" && data.preview.trim().length > 0;
@@ -179,78 +175,13 @@ export const useEditorSceneLoader = ({
           scrollToContent: true,
           libraryItems,
         });
-
-        // Stream referenced files into the canvas as they land. Each hydrated
-        // dataURL is written into latestFiles AND lastSyncedFiles/
-        // lastPersistedFiles for the same fileId in the same step: this mirrors
-        // how compressedFilesResult is handled in useEditorPersistence, so the
-        // freshly-inlined bytes are never diffed by getFilesDelta as a "changed
-        // file" and re-uploaded/re-saved. `isSyncing` wraps the addFiles push so
-        // it doesn't trigger the broadcast/save loop. Every callback bails when
-        // the effect is cancelled (stale-load guard); files that resolve before
-        // the Excalidraw API is registered queue and flush once it appears.
-        const pendingCanvasFiles: Record<string, any>[] = [];
-        let flushScheduled = false;
-        const pushToCanvas = (batch: Record<string, any>[]): boolean => {
-          const excalidrawApi = refs.excalidrawAPI.current;
-          if (!excalidrawApi || typeof excalidrawApi.addFiles !== "function") {
-            return false;
-          }
-          refs.isSyncing.current = true;
-          try {
-            excalidrawApi.addFiles(batch);
-          } finally {
-            refs.isSyncing.current = false;
-          }
-          return true;
-        };
-        const flushPendingCanvasFiles = () => {
-          flushScheduled = false;
-          if (cancelled || pendingCanvasFiles.length === 0) return;
-          if (pushToCanvas(pendingCanvasFiles)) {
-            pendingCanvasFiles.length = 0;
-            return;
-          }
-          if (!flushScheduled) {
-            flushScheduled = true;
-            setTimeout(flushPendingCanvasFiles, 50);
-          }
-        };
-        const handleFileReady = (
-          fileId: string,
-          hydratedFile: Record<string, any>,
-        ) => {
-          if (cancelled) return;
-          refs.latestFiles.current = {
-            ...refs.latestFiles.current,
-            [fileId]: hydratedFile,
-          };
-          refs.lastSyncedFiles.current = {
-            ...refs.lastSyncedFiles.current,
-            [fileId]: hydratedFile,
-          };
-          refs.lastPersistedFiles.current = {
-            ...refs.lastPersistedFiles.current,
-            [fileId]: hydratedFile,
-          };
-          if (!pushToCanvas([hydratedFile])) {
-            pendingCanvasFiles.push(hydratedFile);
-            if (!flushScheduled) {
-              flushScheduled = true;
-              setTimeout(flushPendingCanvasFiles, 50);
-            }
-          }
-        };
-        void rehydrateFilesProgressive(
-          files,
-          handleFileReady,
-          () => cancelled,
-        );
       } catch (err) {
         if (cancelled) return;
         console.error("Failed to load drawing", err);
         let message = "Failed to load drawing";
-        if (api.isAxiosError(err)) {
+        if (err instanceof Error && err.message === "Some drawing images could not be downloaded for export") {
+          message = "Failed to load drawing images";
+        } else if (api.isAxiosError(err)) {
           const responseMessage =
             typeof err.response?.data?.message === "string"
               ? err.response.data.message

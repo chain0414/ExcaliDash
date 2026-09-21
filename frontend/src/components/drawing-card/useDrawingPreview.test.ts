@@ -1,5 +1,5 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import { useDrawingPreview } from "./useDrawingPreview";
 import type { DrawingSummary } from "../../types";
@@ -26,6 +26,8 @@ describe("useDrawingPreview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it("fetches the stored preview from the per-drawing endpoint when not inlined", async () => {
     getDrawingPreviewMock.mockResolvedValue("<svg>stored</svg>");
@@ -71,5 +73,26 @@ describe("useDrawingPreview", () => {
     await waitFor(() => {
       expect(getDrawingMock).toHaveBeenCalledWith("d1");
     });
+  });
+
+  it("rehydrates a drawing card before providing its export data", async () => {
+    getDrawingPreviewMock.mockResolvedValue("<svg>stored</svg>");
+    getDrawingMock.mockResolvedValue({
+      id: "d1",
+      elements: [{ type: "image", fileId: "icon", isDeleted: false }],
+      appState: {},
+      files: { icon: { id: "icon", mimeType: "image/svg+xml", dataURL: "/api/files/d1/icon" } },
+    } as any);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['<svg xmlns="http://www.w3.org/2000/svg"/>'], { type: "image/svg+xml" }),
+    }));
+
+    const { result } = renderHook(() => useDrawingPreview(makeSummary()));
+    let exportData: Awaited<ReturnType<typeof result.current.buildExportDrawing>> | undefined;
+    await act(async () => {
+      exportData = await result.current.buildExportDrawing();
+    });
+    expect(exportData?.files.icon.dataURL).toMatch(/^data:image\/svg\+xml;base64,/);
   });
 });

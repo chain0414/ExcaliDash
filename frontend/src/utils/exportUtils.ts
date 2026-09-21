@@ -1,4 +1,5 @@
 import type { Drawing } from "../types";
+import { filesNeedRehydration, rehydrateFilesFromUrls } from "./rehydrateFiles";
 
 export interface ExportData {
   type: "excalidraw";
@@ -12,10 +13,28 @@ export interface ExportData {
 /**
  * Export a drawing to a .excalidraw file and trigger download
  */
-export const exportDrawingToFile = (
+export const prepareExportFiles = async (
+  files: Record<string, any>,
+  elements: readonly any[] = [],
+): Promise<Record<string, any>> => {
+  const hydrated = await rehydrateFilesFromUrls(files || {});
+  const missingImage = elements.some((element) =>
+    element?.type === "image" &&
+    !element?.isDeleted &&
+    typeof element?.fileId === "string" &&
+    !/^data:image\//i.test(hydrated[element.fileId]?.dataURL ?? ""),
+  );
+  if (filesNeedRehydration(hydrated) || missingImage) {
+    throw new Error("Some drawing images could not be downloaded for export");
+  }
+  return hydrated;
+};
+
+export const exportDrawingToFile = async (
   drawing: Drawing,
   filename?: string
-): void => {
+): Promise<void> => {
+  const files = await prepareExportFiles(drawing.files || {}, drawing.elements || []);
   const exportData: ExportData = {
     type: "excalidraw",
     version: 2,
@@ -27,7 +46,7 @@ export const exportDrawingToFile = (
       ...(drawing.appState?.gridModeEnabled != null && { gridModeEnabled: drawing.appState.gridModeEnabled }),
       viewBackgroundColor: drawing.appState?.viewBackgroundColor ?? "#ffffff",
     },
-    files: drawing.files || {},
+    files,
   };
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -47,12 +66,13 @@ export const exportDrawingToFile = (
 /**
  * Export drawing from Editor with current state
  */
-export const exportFromEditor = (
+export const exportFromEditor = async (
   name: string,
   elements: readonly any[],
   appState: any,
   files: Record<string, any>
-): void => {
+): Promise<void> => {
+  const hydratedFiles = await prepareExportFiles(files || {}, elements);
   const exportData: ExportData = {
     type: "excalidraw",
     version: 2,
@@ -64,7 +84,7 @@ export const exportFromEditor = (
       ...(appState?.gridModeEnabled != null && { gridModeEnabled: appState.gridModeEnabled }),
       viewBackgroundColor: appState?.viewBackgroundColor ?? "#ffffff",
     },
-    files: files || {},
+    files: hydratedFiles,
   };
 
   const blob = new Blob([JSON.stringify(exportData, null, 2)], {

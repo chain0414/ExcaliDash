@@ -119,7 +119,7 @@ describe("useEditorSceneLoader", () => {
     expect(getDrawing).toHaveBeenCalledTimes(1);
   });
 
-  describe("progressive file streaming", () => {
+  describe("complete image loading", () => {
     const fetchMock = vi.fn();
 
     beforeEach(() => {
@@ -146,7 +146,7 @@ describe("useEditorSceneLoader", () => {
       accessLevel: "owner",
     });
 
-    it("paints the scene without waiting for file fetches, then streams the file in via addFiles", async () => {
+    it("waits for image bytes before giving the scene to Excalidraw", async () => {
       let resolveFetch: (value: any) => void = () => {};
       fetchMock.mockReturnValue(
         new Promise((resolve) => {
@@ -156,32 +156,23 @@ describe("useEditorSceneLoader", () => {
       getDrawing.mockResolvedValue(drawingWithRef() as any);
 
       const params = makeParams();
-      const addFiles = vi.fn();
       renderHook(() => useEditorSceneLoader(params));
-      // The Excalidraw API registers after the loader resets refs.
-      params.refs.excalidrawAPI.current = { addFiles };
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      expect(params.setInitialData).not.toHaveBeenCalledWith(
+        expect.objectContaining({ files: expect.anything() }),
+      );
 
-      // First paint happens with the ref-only files, before the fetch resolves.
+      resolveFetch(okPng());
       await waitFor(() =>
         expect(params.setInitialData).toHaveBeenCalledWith(
           expect.objectContaining({
             files: expect.objectContaining({
-              f1: expect.objectContaining({ dataURL: "/api/files/dA/f1" }),
+              f1: expect.objectContaining({ dataURL: expect.stringMatching(/^data:image\/png;base64,/) }),
             }),
           }),
         ),
       );
       expect(params.setIsSceneLoading).toHaveBeenCalledWith(false);
-      expect(addFiles).not.toHaveBeenCalled();
-
-      // The file lands late and is pushed into the canvas as an inline dataURL.
-      resolveFetch(okPng());
-      await waitFor(() => expect(addFiles).toHaveBeenCalledTimes(1));
-      const pushed = addFiles.mock.calls[0][0];
-      expect(pushed[0].id).toBe("f1");
-      expect(pushed[0].dataURL.startsWith("data:image/png;base64,")).toBe(true);
-
-      // The hydrated bytes must not read as a dirty file that gets re-saved.
       expect(params.refs.latestFiles.current.f1.dataURL).toBe(
         params.refs.lastPersistedFiles.current.f1.dataURL,
       );
@@ -195,7 +186,7 @@ describe("useEditorSceneLoader", () => {
       ).toEqual([]);
     });
 
-    it("aborts file callbacks when the load is cancelled mid-flight", async () => {
+    it("does not publish a scene after navigation during image fetch", async () => {
       let resolveFetch: (value: any) => void = () => {};
       fetchMock.mockReturnValue(
         new Promise((resolve) => {
@@ -205,27 +196,29 @@ describe("useEditorSceneLoader", () => {
       getDrawing.mockResolvedValue(drawingWithRef() as any);
 
       const params = makeParams();
-      const addFiles = vi.fn();
       const { unmount } = renderHook(() => useEditorSceneLoader(params));
-      params.refs.excalidrawAPI.current = { addFiles };
+      await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
 
-      await waitFor(() =>
-        expect(params.setInitialData).toHaveBeenCalledWith(
-          expect.objectContaining({ files: expect.anything() }),
-        ),
-      );
-
-      // Navigate away, then let the in-flight fetch resolve.
       unmount();
       resolveFetch(okPng());
       await Promise.resolve();
       await Promise.resolve();
 
-      // The stale file must not be pushed into the (now unmounted) canvas, and
-      // latestFiles keeps the untouched reference.
-      expect(addFiles).not.toHaveBeenCalled();
-      expect(params.refs.latestFiles.current.f1.dataURL).toBe(
-        "/api/files/dA/f1",
+      expect(params.setInitialData).not.toHaveBeenCalledWith(
+        expect.objectContaining({ files: expect.anything() }),
+      );
+      expect(params.refs.latestFiles.current).toEqual({});
+    });
+
+    it("shows a load error instead of opening a scene with broken image refs", async () => {
+      fetchMock.mockResolvedValue({ ok: false });
+      getDrawing.mockResolvedValue(drawingWithRef() as any);
+      const params = makeParams();
+      renderHook(() => useEditorSceneLoader(params));
+
+      await waitFor(() => expect(params.setLoadError).toHaveBeenCalledWith("Failed to load drawing images"));
+      expect(params.setInitialData).not.toHaveBeenCalledWith(
+        expect.objectContaining({ files: expect.anything() }),
       );
     });
   });

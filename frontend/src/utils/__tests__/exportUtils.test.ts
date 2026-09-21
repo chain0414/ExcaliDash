@@ -5,8 +5,40 @@
  * correctly, which is critical for the issue #17 fix.
  */
 
-import { describe, it, expect } from "vitest";
-import { type ExportData } from "../exportUtils";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { prepareExportFiles, type ExportData } from "../exportUtils";
+
+describe("prepareExportFiles", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("embeds stored SVG bytes before exporting a drawing", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"/>';
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob([svg], { type: "image/svg+xml" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const files = {
+      icon: { id: "icon", mimeType: "image/svg+xml", dataURL: "/api/files/d1/icon" },
+    };
+    const exported = await prepareExportFiles(files);
+    expect(exported.icon.dataURL).toMatch(/^data:image\/svg\+xml;base64,/);
+    expect(files.icon.dataURL).toBe("/api/files/d1/icon");
+  });
+
+  it("rejects an export if an image cannot be fetched", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    await expect(prepareExportFiles({
+      icon: { dataURL: "/api/files/d1/icon" },
+    })).rejects.toThrow("could not be downloaded");
+  });
+
+  it("rejects a drawing with a missing referenced image", async () => {
+    await expect(prepareExportFiles({}, [
+      { type: "image", fileId: "missing", isDeleted: false },
+    ])).rejects.toThrow("could not be downloaded");
+  });
+});
 
 const createLargeDataUrl = (size: number = 50000): string => {
   const baseImage = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==";
@@ -279,4 +311,3 @@ describe("Issue #17 Full Scenario Simulation", () => {
     console.log("✓ Issue #17 full scenario test passed - image data preserved correctly");
   });
 });
-

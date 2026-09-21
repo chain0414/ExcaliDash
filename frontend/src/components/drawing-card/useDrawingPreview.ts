@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Drawing, DrawingSummary } from "../../types";
+import { prepareExportFiles } from "../../utils/exportUtils";
 import { previewHasEmbeddedImages } from "../../utils/previewSvg";
 import * as api from "../../api";
 
@@ -66,11 +67,15 @@ export const useDrawingPreview = (
     const currentDrawingId = drawingIdRef.current;
     const promise = api
       .getDrawing(currentDrawingId)
-      .then((fullDrawing) => {
+      .then(async (fullDrawing) => {
+        const files = await prepareExportFiles(
+          fullDrawing.files || {},
+          fullDrawing.elements || [],
+        );
         const payload: HydratedDrawingData = {
           elements: fullDrawing.elements || [],
           appState: fullDrawing.appState || {},
-          files: fullDrawing.files || {},
+          files,
         };
         setFullData(payload);
         fullDataPromiseRef.current = null;

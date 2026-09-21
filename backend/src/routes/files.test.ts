@@ -1,6 +1,8 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { generateApiKey, serializeApiKeyScopes } from "../auth/apiKeys";
+import { createAuthMiddleware } from "../middleware/auth";
 import { registerFileRoutes } from "./files";
 
 const s3Mocks = vi.hoisted(() => ({
@@ -180,5 +182,100 @@ describe("file routes", () => {
 
     expect(response.status).toBe(415);
     expect(prisma.drawingFile.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("API key file reads", () => {
+  const fileBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+  const setup = (scopes: string[]) => {
+    const key = generateApiKey();
+    const prisma = {
+      apiKey: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "key-1",
+          tokenHash: key.tokenHash,
+          scopes: serializeApiKeyScopes(scopes),
+          revokedAt: null,
+          user: {
+            id: "owner-user",
+            username: "owner",
+            email: "owner@test.local",
+            name: "Owner",
+            role: "USER",
+            mustResetPassword: false,
+            isActive: true,
+          },
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      drawing: {
+        findUnique: vi.fn().mockImplementation(async ({ where }: { where: { id: string } }) =>
+          where.id === "owned-drawing" ? { userId: "owner-user" } : { userId: "other-user" },
+        ),
+      },
+      drawingPermission: { findUnique: vi.fn().mockResolvedValue(null) },
+      collection: { findFirst: vi.fn().mockResolvedValue(null) },
+      collectionShare: { findFirst: vi.fn().mockResolvedValue(null) },
+      drawingLinkShare: { findFirst: vi.fn().mockResolvedValue(null) },
+      drawingFile: {
+        findUnique: vi.fn().mockResolvedValue({
+          storage: "db",
+          data: fileBytes,
+          mimeType: "image/png",
+        }),
+      },
+    };
+    const authModeService = { getAuthEnabled: vi.fn().mockResolvedValue(true) };
+    const { optionalAuth, requireAuth } = createAuthMiddleware({
+      prisma: prisma as any,
+      authModeService: authModeService as any,
+    });
+    const api = express();
+    registerFileRoutes(api, {
+      prisma: prisma as any,
+      optionalAuth,
+      requireAuth,
+      asyncHandler: (fn) => (req, res, next) => {
+        Promise.resolve(fn(req, res, next)).catch(next);
+      },
+    });
+    const app = express();
+    app.use("/api", api);
+    return { app, key: key.token, prisma };
+  };
+
+  it("returns stored bytes to a drawings:read key for an accessible drawing", async () => {
+    const { app, key, prisma } = setup(["drawings:read"]);
+    const response = await request(app)
+      .get("/api/files/owned-drawing/file-1")
+      .set("Authorization", `Bearer ${key}`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers["content-type"]).toMatch(/^image\/png/);
+    expect(response.body).toEqual(fileBytes);
+    expect(prisma.drawingFile.findUnique).toHaveBeenCalledWith({
+      where: { drawingId_fileId: { drawingId: "owned-drawing", fileId: "file-1" } },
+    });
+  });
+
+  it("does not expose a private drawing merely because the key has drawings:read", async () => {
+    const { app, key, prisma } = setup(["drawings:read"]);
+    const response = await request(app)
+      .get("/api/files/other-drawing/file-1")
+      .set("Authorization", `Bearer ${key}`);
+
+    expect(response.status).toBe(404);
+    expect(prisma.drawingFile.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("does not serve private files to a key without drawings:read", async () => {
+    const { app, key, prisma } = setup(["collections:read"]);
+    const response = await request(app)
+      .get("/api/files/owned-drawing/file-1")
+      .set("Authorization", `Bearer ${key}`);
+
+    expect(response.status).toBe(404);
+    expect(prisma.drawingFile.findUnique).not.toHaveBeenCalled();
   });
 });
