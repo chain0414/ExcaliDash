@@ -2,6 +2,7 @@ import express from "express";
 import { registerCollectionRoutes } from "./collections";
 import { registerDrawingRoutes } from "./drawings";
 import { registerLibraryRoutes } from "./library";
+import { registerTemplateRoutes } from "./templates";
 import { DashboardRouteDeps } from "./types";
 
 export const registerDashboardRoutes = (
@@ -11,6 +12,7 @@ export const registerDashboardRoutes = (
   registerDrawingRoutes(app, deps);
   registerCollectionRoutes(app, deps);
   registerLibraryRoutes(app, deps);
+  registerTemplateRoutes(app, deps);
 };
 
 export type { DashboardRouteDeps } from "./types";

@@ -21,6 +21,7 @@ model User {
   preferences         String?
   authIdentities      AuthIdentity[]
   drawings            Drawing[]
+  templates           Template[]
   collections         Collection[]
   drawingPermissions  DrawingPermission[]
   collectionShares    CollectionShare[]
@@ -85,6 +86,24 @@ model Drawing {
 
   @@index([userId, updatedAt])
   @@index([userId, collectionId, updatedAt])
+}
+
+// A template is an owned, immutable scene snapshot. Its files JSON contains
+// self-contained data URLs, so deleting or editing the source drawing cannot
+// change future drawings created from this template.
+model Template {
+  id        String   @id @default(uuid())
+  name      String
+  elements  String
+  appState  String
+  files     String   @default("{}")
+  preview   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
 }
 
 model DrawingSnapshot {

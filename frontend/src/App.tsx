@@ -55,6 +55,14 @@ function App() {
                   }
                 />
                 <Route
+                  path="/templates"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/settings"
                   element={
                     <ProtectedRoute>

@@ -30,6 +30,15 @@ A self-hosted dashboard and organizer for [Excalidraw](https://github.com/excali
 </details>
 
 <details>
+<summary>Reusable drawing templates</summary>
+
+Choose **Save as template** from a drawing's menu. The separate **Templates** page lets you search saved templates, start a new drawing from one, or delete it. Each new drawing is independent of the template and keeps its own image files. **Duplicate** remains a separate action for making a one-off copy of a drawing.
+
+API key clients can use `GET /api/templates`, `POST /api/templates` with `{ "drawingId": "...", "name": "..." }`, `POST /api/templates/:id/create-drawing`, and `DELETE /api/templates/:id`. Template routes require `templates:read` or `templates:write`; creating a template also requires `drawings:read`, and creating a drawing from a template also requires `drawings:write`. Existing API keys do not gain template scopes automatically.
+
+</details>
+
+<details>
 <summary>Real time collaboration</summary>
 
 ![](readme-assets/collabDemo.gif)
