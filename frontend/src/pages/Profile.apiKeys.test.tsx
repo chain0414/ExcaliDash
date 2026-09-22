@@ -23,7 +23,7 @@ vi.mock("../components/Layout", () => ({
 }));
 
 vi.mock("../api", () => ({
-  API_KEY_SCOPES: ["drawings:read", "drawings:write", "collections:read", "collections:write", "templates:read", "templates:write"],
+  API_KEY_SCOPES: ["drawings:read", "drawings:write", "collections:read", "collections:write", "templates:read", "templates:write", "assets:read", "assets:write"],
   api: {
     put: vi.fn(),
     post: vi.fn(),
@@ -61,7 +61,7 @@ describe("Profile API keys", () => {
         id: "key-2",
         name,
         prefix: "exd_key_new456",
-        scopes: scopes ?? ["drawings:read", "drawings:write", "collections:read", "collections:write", "templates:read", "templates:write"],
+        scopes: scopes ?? ["drawings:read", "drawings:write", "collections:read", "collections:write", "templates:read", "templates:write", "assets:read", "assets:write"],
       },
       token: "exd_key_new456.secret-token-value",
     }));
@@ -98,6 +98,8 @@ describe("Profile API keys", () => {
       "collections:write",
       "templates:read",
       "templates:write",
+      "assets:read",
+      "assets:write",
     ]);
 
     fireEvent.click(screen.getByRole("button", { name: /copy generated api token/i }));
@@ -181,6 +183,8 @@ describe("Profile API keys", () => {
     fireEvent.click(screen.getByLabelText(/write collections/i));
     fireEvent.click(screen.getByLabelText(/read templates/i));
     fireEvent.click(screen.getByLabelText(/write templates/i));
+    fireEvent.click(screen.getByLabelText(/read assets/i));
+    fireEvent.click(screen.getByLabelText(/write assets/i));
     fireEvent.click(screen.getByRole("button", { name: /create api key/i }));
 
     expect(await screen.findByDisplayValue("exd_key_new456.secret-token-value")).toBeInTheDocument();
@@ -206,6 +210,8 @@ describe("Profile API keys", () => {
     fireEvent.click(screen.getByLabelText(/write collections/i));
     fireEvent.click(screen.getByLabelText(/read templates/i));
     fireEvent.click(screen.getByLabelText(/write templates/i));
+    fireEvent.click(screen.getByLabelText(/read assets/i));
+    fireEvent.click(screen.getByLabelText(/write assets/i));
 
     expect(screen.getByText(/select at least one api key scope/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /create api key/i })).toBeDisabled();
