@@ -9,6 +9,7 @@ import { Loader2 } from 'lucide-react';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const Editor = lazy(() => import('./pages/Editor').then(m => ({ default: m.Editor })));
+const TemplateEditor = lazy(() => import('./pages/TemplateEditor').then(m => ({ default: m.TemplateEditor })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const Profile = lazy(() => import('./pages/Profile').then(m => ({ default: m.Profile })));
 const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
@@ -61,6 +62,10 @@ function App() {
                       <Dashboard />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                  path="/templates/:id/edit"
+                  element={<ProtectedRoute><TemplateEditor /></ProtectedRoute>}
                 />
                 <Route
                   path="/settings"

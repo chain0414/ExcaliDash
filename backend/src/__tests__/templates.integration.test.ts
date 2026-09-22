@@ -90,5 +90,36 @@ describe("standalone templates", () => {
     expect((await request(app).post(`/templates/${id}/create-drawing`).set("x-test-user", "other").send({})).status).toBe(404);
     expect((await request(app).delete(`/templates/${id}`).set("x-test-user", "other")).status).toBe(404);
     expect((await other(`/templates/${id}`)).status).toBe(404);
+    expect((await request(app).put(`/templates/${id}`).set("x-test-user", "other").send({})).status).toBe(404);
+  });
+
+  it("edits a template in place, preserves embedded images, and uses the edited scene", async () => {
+    const source = await prisma.drawing.create({ data: {
+      userId: ownerId, name: "Original", elements: "[]", appState: "{}", files: "{}",
+    } });
+    const saved = await request(app).post("/templates").send({ drawingId: source.id, name: "First" });
+    expect(saved.status).toBe(201);
+    const id = saved.body.template.id;
+    const detail = await request(app).get(`/templates/${id}`);
+    expect(detail.status).toBe(200);
+    expect(detail.body.template.elements).toEqual([]);
+    const image = "data:image/png;base64," + Buffer.from("edited-image").toString("base64");
+    const payload = {
+      expectedUpdatedAt: detail.body.template.updatedAt,
+      name: "Updated template",
+      elements: [{ id: "image-1", type: "image", fileId: "file-1", isDeleted: false }],
+      appState: { viewBackgroundColor: "#fff" },
+      files: { "file-1": { id: "file-1", mimeType: "image/png", dataURL: image } },
+      preview: `<svg xmlns="http://www.w3.org/2000/svg"><image href="${image}"/></svg>`,
+    };
+    const updated = await request(app).put(`/templates/${id}`).send(payload);
+    expect(updated.status).toBe(200);
+    expect(updated.body.template.name).toBe("Updated template");
+    expect((await request(app).put(`/templates/${id}`).send(payload)).status).toBe(409);
+    const created = await request(app).post(`/templates/${id}/create-drawing`).send({});
+    expect(created.status).toBe(201);
+    expect(created.body.name).toBe("Updated template");
+    expect(created.body.elements[0].fileId).toBe("file-1");
+    expect(created.body.files["file-1"].dataURL).toBe(`/api/files/${created.body.id}/file-1`);
   });
 });

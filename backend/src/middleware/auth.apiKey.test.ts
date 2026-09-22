@@ -58,6 +58,11 @@ describe("auth middleware API key authentication", () => {
     expect((await authorize("POST", "/templates")).res.status).toHaveBeenCalledWith(403);
     row.scopes = serializeApiKeyScopes(["templates:write", "drawings:read"]);
     expect((await authorize("POST", "/templates")).next).toHaveBeenCalledTimes(1);
+    expect((await authorize("PUT", "/templates/dummy")).next).toHaveBeenCalledTimes(1);
+    expect((await authorize("GET", "/templates/dummy")).res.status).toHaveBeenCalledWith(403);
+    row.scopes = serializeApiKeyScopes(["templates:read"]);
+    expect((await authorize("GET", "/templates/dummy")).next).toHaveBeenCalledTimes(1);
+    expect((await authorize("PUT", "/templates/dummy")).res.status).toHaveBeenCalledWith(403);
   });
   it("attaches active user for valid API key", async () => {
     const { prisma, authModeService } = createDeps();

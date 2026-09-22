@@ -14,8 +14,8 @@ const template = {
   id: "template-1",
   name: "Article diagram",
   preview: null,
-  createdAt: 100,
-  updatedAt: 200,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-02T00:00:00.000Z",
 };
 
 const renderGallery = () => render(
@@ -23,6 +23,7 @@ const renderGallery = () => render(
     <Routes>
       <Route path="/templates" element={<TemplateGallery />} />
       <Route path="/editor/:id" element={<p>Independent drawing opened</p>} />
+      <Route path="/templates/:id/edit" element={<p>Template editor opened</p>} />
     </Routes>
   </MemoryRouter>,
 );
@@ -55,5 +56,13 @@ describe("TemplateGallery", () => {
 
     await waitFor(() => expect(api.deleteTemplate).toHaveBeenCalledWith("template-1"));
     expect(await screen.findByText("No templates yet")).toBeInTheDocument();
+  });
+
+  it("opens the template itself for editing", async () => {
+    renderGallery();
+    expect(await screen.findByText("Article diagram")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit template Article diagram" }));
+    expect(await screen.findByText("Template editor opened")).toBeInTheDocument();
+    expect(api.createDrawingFromTemplate).not.toHaveBeenCalled();
   });
 });

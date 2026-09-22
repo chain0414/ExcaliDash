@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FilePlus2, LayoutTemplate, Loader2, Search, Trash2 } from "lucide-react";
+import { FilePlus2, LayoutTemplate, Loader2, Pencil, Search, Trash2 } from "lucide-react";
 import * as api from "../../api";
 import type { DrawingTemplate } from "../../types";
 import { ConfirmModal } from "../../components/ConfirmModal";
@@ -62,7 +62,7 @@ export const TemplateGallery: React.FC = () => {
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-5xl text-slate-900 dark:text-white pl-1" style={{ fontFamily: displayFontFamily }}>Templates</h1>
-          <p className="mt-2 text-sm text-slate-500 dark:text-neutral-400">Start a new drawing from a saved template. Your template stays unchanged.</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-neutral-400">从模板创建新画板，或直接编辑模板的名称和内容。</p>
         </div>
         <label className="flex items-center gap-2 rounded-xl border-2 border-black dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-2 text-slate-500 dark:text-neutral-300">
           <Search size={18} aria-hidden="true" />
@@ -90,6 +90,7 @@ export const TemplateGallery: React.FC = () => {
                 <h2 className="truncate font-bold text-slate-900 dark:text-white" title={template.name}>{template.name}</h2>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button type="button" onClick={() => void createDrawing(template)} disabled={busyId !== null} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border-2 border-black bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"><FilePlus2 size={16} /> Use template</button>
+                  <button type="button" onClick={() => navigate(`/templates/${template.id}/edit`)} disabled={busyId !== null} aria-label={`Edit template ${template.name}`} className="inline-flex items-center gap-1 rounded-lg border-2 border-slate-200 dark:border-neutral-700 px-3 py-2 text-sm font-semibold text-slate-700 dark:text-neutral-200 hover:bg-slate-100 dark:hover:bg-neutral-800 disabled:opacity-50"><Pencil size={16} /> 编辑</button>
                   <button type="button" onClick={() => setDeleteTarget(template)} disabled={busyId !== null} aria-label={`Delete template ${template.name}`} className="rounded-lg border-2 border-slate-200 dark:border-neutral-700 p-2 text-slate-500 dark:text-neutral-400 hover:text-rose-600 disabled:opacity-50"><Trash2 size={17} /></button>
                 </div>
               </div>

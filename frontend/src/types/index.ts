@@ -18,8 +18,13 @@ export interface DrawingTemplate {
   id: string;
   name: string;
   preview: string | null;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface DrawingTemplateDetail extends DrawingTemplate {
+  elements: any[];
+  appState: Record<string, any>;
+  files: Record<string, any>;
 }
 export interface Collection {
   id: string;

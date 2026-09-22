@@ -2,7 +2,7 @@ import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { decodeDataURL, MIME_TO_EXT } from "../../fileProcessing";
 import { deleteS3Object, downloadBuffer, drawingS3Prefix, isS3Enabled, listS3Objects } from "../../s3";
-import { sanitizeSvg } from "../../security";
+import { DrawingSanitizationError, sanitizeDrawingData, sanitizeSvg } from "../../security";
 import type { DashboardRouteDeps } from "./types";
 
 type SceneFile = { dataURL?: unknown; [key: string]: unknown };
@@ -58,6 +58,80 @@ export const registerTemplateRoutes = (
       orderBy: { updatedAt: "desc" },
     });
     return res.json({ templates: templates.map(summary) });
+  }));
+
+  app.get("/templates/:id", requireAuth, asyncHandler(async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    const template = await prisma.template.findFirst({ where: { id: req.params.id, userId: req.user.id } });
+    if (!template) return res.status(404).json({ error: "Template not found" });
+    return res.json({ template: {
+      ...summary(template),
+      elements: parseJsonField(template.elements, []),
+      appState: parseJsonField(template.appState, {}),
+      files: parseJsonField(template.files, {}),
+    } });
+  }));
+
+  app.put("/templates/:id", requireAuth, asyncHandler(async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    const current = await prisma.template.findFirst({ where: { id: req.params.id, userId: req.user.id } });
+    if (!current) return res.status(404).json({ error: "Template not found" });
+    const name = parseName(req.body?.name, current.name);
+    if (!name) return res.status(400).json({ error: "Invalid template name" });
+    const expectedUpdatedAt = req.body?.expectedUpdatedAt;
+    if (typeof expectedUpdatedAt !== "string" || !Number.isFinite(Date.parse(expectedUpdatedAt))) {
+      return res.status(400).json({ error: "expectedUpdatedAt is required" });
+    }
+    if (!Array.isArray(req.body?.elements) || req.body.elements.length > 10000 ||
+      !req.body?.appState || typeof req.body.appState !== "object" || Array.isArray(req.body.appState) ||
+      !req.body?.files || typeof req.body.files !== "object" || Array.isArray(req.body.files) ||
+      (req.body.preview !== null && typeof req.body.preview !== "string")) {
+      return res.status(400).json({ error: "Invalid template scene" });
+    }
+    let scene: ReturnType<typeof sanitizeDrawingData>;
+    try {
+      scene = sanitizeDrawingData({
+        elements: req.body.elements,
+        appState: req.body.appState,
+        files: req.body.files,
+        preview: req.body.preview,
+      });
+    } catch (error) {
+      if (error instanceof DrawingSanitizationError) {
+        return res.status(error.statusCode).json({ error: "Invalid template scene" });
+      }
+      return res.status(400).json({ error: "Invalid template scene" });
+    }
+    const files = scene.files as SceneFiles;
+    for (const element of scene.elements) {
+      if (element.type !== "image" || element.isDeleted) continue;
+      const fileId = element.fileId;
+      if (typeof fileId !== "string" || !files[fileId]) {
+        return res.status(400).json({ error: "Template image is missing file data" });
+      }
+    }
+    for (const file of Object.values(files)) {
+      if (!file || typeof file.dataURL !== "string" || !file.dataURL.startsWith("data:")) {
+        return res.status(400).json({ error: "Template images must be embedded" });
+      }
+      const decoded = decodeDataURL(file.dataURL);
+      if (!decoded || !(decoded.mimeType in MIME_TO_EXT)) {
+        return res.status(400).json({ error: "Unsupported template image" });
+      }
+    }
+    const updated = await prisma.template.updateMany({
+      where: { id: current.id, userId: req.user.id, updatedAt: new Date(expectedUpdatedAt) },
+      data: {
+        name,
+        elements: JSON.stringify(scene.elements),
+        appState: JSON.stringify(scene.appState),
+        files: JSON.stringify(files),
+        preview: scene.preview ?? null,
+      },
+    });
+    if (!updated.count) return res.status(409).json({ error: "Template was changed elsewhere; reload before saving" });
+    const template = await prisma.template.findUniqueOrThrow({ where: { id: current.id } });
+    return res.json({ template: summary(template) });
   }));
 
   app.post("/templates", requireAuth, asyncHandler(async (req, res) => {
