@@ -19,7 +19,7 @@ const createSchema = z.object({
 type AssetRow = {
   id: string; name: string; source: string; sourceUrl: string | null;
   license: string; aliasesZh: string; aliasesEn: string; tags: string;
-  svg: string; sha256: string; version: number; createdAt: Date; updatedAt: Date;
+  sha256: string; version: number; createdAt: Date; updatedAt: Date;
 };
 
 const parseLabels = (raw: string): string[] => {
@@ -132,6 +132,40 @@ export const registerAssetRoutes = (
       assets: page.map(assetSummary),
       nextCursor: assets.length > limit ? page[page.length - 1].id : null,
     });
+  }));
+
+  // Load metadata once so search and category changes are instant in the editor.
+  app.get("/assets/catalog", requireAuth, asyncHandler(async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    const [assets, usages] = await Promise.all([
+      prisma.asset.findMany({
+        where: { userId: req.user.id }, orderBy: { name: "asc" },
+        select: { id: true, name: true, source: true, sourceUrl: true, license: true,
+          aliasesZh: true, aliasesEn: true, tags: true, sha256: true, version: true,
+          createdAt: true, updatedAt: true },
+      }),
+      prisma.assetUsage.findMany({ where: { userId: req.user.id },
+        select: { assetId: true, count: true, lastUsedAt: true } }),
+    ]);
+    const usageByAsset = new Map(usages.map((usage) => [usage.assetId, usage]));
+    return res.json({ assets: assets.map((asset) => ({
+      ...assetSummary(asset),
+      usageCount: usageByAsset.get(asset.id)?.count ?? 0,
+      lastUsedAt: usageByAsset.get(asset.id)?.lastUsedAt ?? null,
+    })) });
+  }));
+
+  app.post("/assets/:id/use", requireAuth, asyncHandler(async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "Invalid asset id" });
+    const asset = await prisma.asset.findFirst({ where: { id: req.params.id, userId: req.user.id }, select: { id: true } });
+    if (!asset) return res.status(404).json({ error: "Asset not found" });
+    const usage = await prisma.assetUsage.upsert({
+      where: { userId_assetId: { userId: req.user.id, assetId: asset.id } },
+      create: { userId: req.user.id, assetId: asset.id, count: 1 },
+      update: { count: { increment: 1 }, lastUsedAt: new Date() },
+    });
+    return res.json({ usageCount: usage.count, lastUsedAt: usage.lastUsedAt });
   }));
 
   app.get("/assets/:id", requireAuth, asyncHandler(async (req, res) => {

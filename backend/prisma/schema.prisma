@@ -23,6 +23,7 @@ model User {
   drawings            Drawing[]
   templates           Template[]
   assets              Asset[]
+  assetUsages         AssetUsage[]
   collections         Collection[]
   drawingPermissions  DrawingPermission[]
   collectionShares    CollectionShare[]
@@ -126,11 +127,24 @@ model Asset {
   version    Int      @default(1)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  usages     AssetUsage[]
 
   @@unique([userId, source, name])
   @@index([userId, sha256])
   @@index([userId, name])
   @@index([userId, createdAt])
+}
+
+model AssetUsage {
+  userId     String
+  assetId    String
+  count      Int      @default(0)
+  lastUsedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([userId, assetId])
+  @@index([userId, count])
 }
 
 model DrawingSnapshot {

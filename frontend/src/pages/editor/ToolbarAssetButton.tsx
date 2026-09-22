@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { GalleryVerticalEnd } from "lucide-react";
 import clsx from "clsx";
+import handPenIcon from "../../assets/hand-pen.svg";
 
 type Props = {
   editorContainerRef: React.RefObject<HTMLDivElement>;
@@ -59,7 +59,10 @@ export const ToolbarAssetButton = ({ editorContainerRef, isOpen, onToggle }: Pro
         isOpen && "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200",
       )}
     >
-      <GalleryVerticalEnd size={20} aria-hidden="true" />
+      <span aria-hidden="true" className="block h-5 w-5 bg-current" style={{
+        mask: `url(${handPenIcon}) center / contain no-repeat`,
+        WebkitMask: `url(${handPenIcon}) center / contain no-repeat`,
+      }} />
     </button>,
     host,
   );

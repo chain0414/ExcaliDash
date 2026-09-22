@@ -120,6 +120,24 @@ describe("owned SVG assets", () => {
     const absent = await request(app).get("/assets?q=should-not-exist")
       .set("Authorization", `Bearer ${ownerToken}`);
     expect(absent.body.assets).toEqual([]);
+    const catalog = await request(app).get("/assets/catalog")
+      .set("Authorization", `Bearer ${ownerToken}`);
+    expect(catalog.status).toBe(200);
+    expect(catalog.body.assets.find((item: { id: string }) => item.id === first.body.ids[0]).usageCount).toBe(0);
+    const use = await request(app).post(`/assets/${first.body.ids[0]}/use`)
+      .set("Authorization", `Bearer ${ownerToken}`);
+    expect(use.status).toBe(200);
+    expect(use.body.usageCount).toBe(1);
+    const again = await request(app).post(`/assets/${first.body.ids[0]}/use`)
+      .set("Authorization", `Bearer ${ownerToken}`);
+    expect(again.body.usageCount).toBe(2);
+    const recommended = await request(app).get("/assets/catalog")
+      .set("Authorization", `Bearer ${ownerToken}`);
+    expect(recommended.body.assets.find((item: { id: string }) => item.id === first.body.ids[0]).usageCount).toBe(2);
+    expect((await request(app).post(`/assets/${first.body.ids[0]}/use`)
+      .set("Authorization", `Bearer ${otherToken}`)).status).toBe(404);
+    expect((await request(app).post(`/assets/${first.body.ids[0]}/use`)
+      .set("Authorization", `Bearer ${readerToken}`)).status).toBe(403);
     const noWrite = await request(app).post("/assets/import")
       .set("Authorization", `Bearer ${readerToken}`).send({ assets });
     expect(noWrite.status).toBe(403);
