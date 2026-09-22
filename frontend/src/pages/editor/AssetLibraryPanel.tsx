@@ -135,7 +135,12 @@ export const AssetLibraryPanel: React.FC<Props> = ({
         {nextCursor && !loading && <button type="button" onClick={() => void loadMore()} disabled={loadingMore} className="mt-3 w-full rounded-lg border border-gray-300 dark:border-neutral-700 px-3 py-2 text-sm disabled:opacity-50">{loadingMore ? "正在加载…" : "加载更多"}</button>}
       </div>
       {!canEdit && <p className="px-4 py-2 text-xs text-amber-700 border-t dark:text-amber-300">This drawing is read-only.</p>}
-      <p className="px-4 py-2 text-[11px] text-gray-500 border-t border-gray-200 dark:border-neutral-700">此处是云端 SVG 图标；画布内的“素材库”用于保存 Excalidraw 组件。插入的 SVG 会嵌入画板。</p>
+      <p className="px-4 py-2 text-[11px] text-gray-500 border-t border-gray-200 dark:border-neutral-700">
+        云端 SVG 会嵌入画板；画布内的“素材库”用于保存 Excalidraw 组件。来源：
+        <a href="https://icon-sets.iconify.design/streamline-freehand/" target="_blank" rel="noopener noreferrer" className="underline">Streamline Freehand</a>
+        {" · "}<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer" className="underline">CC BY 4.0</a>。
+        公开使用时可在页面说明中署名，无需写在图面上。
+      </p>
     </aside>
   );
 };

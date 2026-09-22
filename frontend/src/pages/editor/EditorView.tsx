@@ -7,6 +7,7 @@ import {
   CloudOff,
   Download,
   History,
+  LayoutTemplate,
   Loader2,
   Share2,
 } from "lucide-react";
@@ -59,6 +60,7 @@ type EditorViewProps = {
   onSetGridStep: (gridStep: number) => void;
   onShareOpen: () => void;
   onHistoryOpen: () => void;
+  onSaveTemplateOpen: () => void;
   onAssetLibraryToggle: () => void;
   onAssetLibraryClose: () => void;
   excalidrawAPIRef: React.MutableRefObject<any>;
@@ -127,6 +129,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onSetGridStep,
   onShareOpen,
   onHistoryOpen,
+  onSaveTemplateOpen,
   onAssetLibraryToggle,
   onAssetLibraryClose,
   excalidrawAPIRef,
@@ -176,6 +179,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
         )}
       </div>
       <div className="flex items-center gap-3">
+        {accessLevel === "owner" && id ? (
+          <button
+            type="button"
+            onClick={onSaveTemplateOpen}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800"
+            title={langCode.startsWith("zh") ? "保存为模板" : "Save as template"}
+          >
+            <LayoutTemplate size={18} aria-hidden="true" />
+            <span className="hidden lg:inline">{langCode.startsWith("zh") ? "保存为模板" : "Save as template"}</span>
+          </button>
+        ) : null}
         {canEdit && autosaveFailing ? (
           <span
             className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200 border border-red-200 dark:border-red-800"
@@ -282,6 +296,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
           <MainMenu>
             <MainMenu.DefaultItems.ToggleTheme />
             <MainMenu.DefaultItems.SaveAsImage />
+            {accessLevel === "owner" && id ? (
+              <MainMenu.Item
+                icon={<LayoutTemplate size={20} />}
+                onSelect={onSaveTemplateOpen}
+              >
+                {langCode.startsWith("zh") ? "保存为模板" : "Save as template"}
+              </MainMenu.Item>
+            ) : null}
             <MainMenu.DefaultItems.ClearCanvas />
             <MainMenu.DefaultItems.ChangeCanvasBackground />
             <MainMenu.DefaultItems.Help />

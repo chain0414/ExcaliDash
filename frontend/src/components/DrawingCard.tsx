@@ -155,7 +155,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
             title="Save as template"
             className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 px-2 py-1 text-[11px] font-bold text-slate-600 dark:text-neutral-300 shadow-sm hover:text-indigo-700 dark:hover:text-indigo-300"
           >
-            <LayoutTemplate size={14} aria-hidden="true" /> Template
+            <LayoutTemplate size={14} aria-hidden="true" /> Save as template
           </button>
         )}
         <div
