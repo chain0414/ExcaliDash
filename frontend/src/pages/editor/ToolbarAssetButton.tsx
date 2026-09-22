@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Shapes } from "lucide-react";
+import { GalleryVerticalEnd } from "lucide-react";
 import clsx from "clsx";
 
 type Props = {
@@ -59,7 +59,7 @@ export const ToolbarAssetButton = ({ editorContainerRef, isOpen, onToggle }: Pro
         isOpen && "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-200",
       )}
     >
-      <Shapes size={20} aria-hidden="true" />
+      <GalleryVerticalEnd size={20} aria-hidden="true" />
     </button>,
     host,
   );
