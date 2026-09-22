@@ -1,11 +1,21 @@
 import type { DrawingAsset } from "../../api/assets";
 
 export const CATEGORY_LABELS = [
-  "设计与创作", "工作与商务", "科技与设备", "数据与图表", "沟通与社交",
-  "金融与购物", "旅行与生活", "媒体与娱乐", "人物与健康", "文件与知识",
-  "安全与设置", "通用操作",
+  "通用操作", "文件与知识", "数据与图表", "安全与设置", "沟通与社交",
+  "科技与设备", "设计与创作", "工作与商务", "金融与购物",
+  "旅行与生活", "媒体与娱乐", "人物与健康",
 ] as const;
 export type AssetCategory = typeof CATEGORY_LABELS[number];
+
+const PINNED_CATEGORY_COUNT = 7;
+export const shuffledCategoryOrder = (random: () => number = Math.random): AssetCategory[] => {
+  const remainder: AssetCategory[] = [...CATEGORY_LABELS.slice(PINNED_CATEGORY_COUNT)];
+  for (let index = remainder.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1));
+    [remainder[index], remainder[swap]] = [remainder[swap], remainder[index]];
+  }
+  return [...CATEGORY_LABELS.slice(0, PINNED_CATEGORY_COUNT), ...remainder];
+};
 
 const PREFIXES: Record<AssetCategory, string> = {
   "设计与创作": "design creativity edit graphic vectors composition color crop retouch photo picture image camera lens layers layouts shape drawing taking",

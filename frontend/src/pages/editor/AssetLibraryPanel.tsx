@@ -5,7 +5,7 @@ import {
   API_URL, getDrawingAsset, getDrawingAssetCatalog, recordDrawingAssetUse,
   type DrawingAsset,
 } from "../../api";
-import { assetCategory, byUsage, CATEGORY_LABELS, matchesAssetQuery, type AssetCategory } from "./assetCategories";
+import { assetCategory, byUsage, CATEGORY_LABELS, matchesAssetQuery, shuffledCategoryOrder, type AssetCategory } from "./assetCategories";
 import { insertDrawingAsset } from "./insertDrawingAsset";
 
 type Props = {
@@ -29,6 +29,7 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
   const [retry, setRetry] = useState(0);
   const [insertingId, setInsertingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(60);
+  const [allCategoryOrder] = useState(shuffledCategoryOrder);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -64,7 +65,7 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
     .sort(byUsage), [assets, search, category, tab, categoryUsage]);
   const frequent = useMemo(() => assets.filter((asset) => (asset.usageCount ?? 0) > 0)
     .sort(byUsage).slice(0, 9), [assets]);
-  const categories = tab === "recommended" ? recommendedCategories : CATEGORY_LABELS.filter((label) => categoryCounts.has(label));
+  const categories = tab === "recommended" ? recommendedCategories : allCategoryOrder.filter((label) => categoryCounts.has(label));
   const grouped = !search.trim() && !category;
 
   const insert = async (asset: DrawingAsset) => {
