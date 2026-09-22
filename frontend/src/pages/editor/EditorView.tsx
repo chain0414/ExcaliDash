@@ -47,6 +47,7 @@ type EditorViewProps = {
   onCanvasChange: (elements: readonly any[], appState: any, files?: Record<string, any>) => void;
   onCanvasDropCapture: (event: React.DragEvent<HTMLDivElement>) => void;
   onExportClick: () => void;
+  onImageExportOpen: () => void;
   onLibraryChange: (items: readonly any[]) => void;
   onNavigateHome: () => void;
   onNewNameChange: (value: string) => void;
@@ -116,6 +117,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onCanvasChange,
   onCanvasDropCapture,
   onExportClick,
+  onImageExportOpen,
   onLibraryChange,
   onNavigateHome,
   onNewNameChange,
@@ -179,17 +181,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
         )}
       </div>
       <div className="flex items-center gap-3">
-        {accessLevel === "owner" && id ? (
-          <button
-            type="button"
-            onClick={onSaveTemplateOpen}
-            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-neutral-800"
-            title={langCode.startsWith("zh") ? "保存为模板" : "Save as template"}
-          >
-            <LayoutTemplate size={18} aria-hidden="true" />
-            <span className="hidden lg:inline">{langCode.startsWith("zh") ? "保存为模板" : "Save as template"}</span>
-          </button>
-        ) : null}
         {canEdit && autosaveFailing ? (
           <span
             className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200 border border-red-200 dark:border-red-800"
@@ -295,7 +286,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
         >
           <MainMenu>
             <MainMenu.DefaultItems.ToggleTheme />
-            <MainMenu.DefaultItems.SaveAsImage />
+            <MainMenu.Item icon={<Download size={20} />} onSelect={onImageExportOpen}>
+              {langCode.startsWith("zh") ? "导出图片…" : "Export image…"}
+            </MainMenu.Item>
             {accessLevel === "owner" && id ? (
               <MainMenu.Item
                 icon={<LayoutTemplate size={20} />}
