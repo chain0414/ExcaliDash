@@ -8,7 +8,6 @@ import {
   Download,
   History,
   Loader2,
-  Shapes,
   Share2,
 } from "lucide-react";
 import clsx from "clsx";
@@ -20,6 +19,7 @@ import { GridStepSelector } from "../../components/GridStepSelector";
 import type { UserIdentity } from "../../utils/identity";
 import { UIOptions } from "./shared";
 import { AssetLibraryPanel } from "./AssetLibraryPanel";
+import { ToolbarAssetButton } from "./ToolbarAssetButton";
 import { visiblePeers, type PresencePeer } from "./visiblePeers";
 
 type EditorViewProps = {
@@ -176,19 +176,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
         )}
       </div>
       <div className="flex items-center gap-3">
-        {canEdit && id ? (
-          <button
-            type="button"
-            onClick={onAssetLibraryToggle}
-            aria-label="手绘图标库"
-            aria-pressed={isAssetLibraryOpen}
-            className={clsx("flex items-center gap-1.5 px-2.5 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 transition-colors", isAssetLibraryOpen && "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200")}
-            title="搜索并插入云端手绘 SVG 图标"
-          >
-            <Shapes size={20} />
-            <span>手绘图标</span>
-          </button>
-        ) : null}
         {canEdit && autosaveFailing ? (
           <span
             className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200 border border-red-200 dark:border-red-800"
@@ -315,6 +302,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
         </div>
       )}
       <Toaster position="bottom-center" />
+      {initialData && canEdit && id && (
+        <ToolbarAssetButton
+          editorContainerRef={editorContainerRef}
+          isOpen={isAssetLibraryOpen}
+          onToggle={onAssetLibraryToggle}
+        />
+      )}
       {initialData && canEdit && (
         <AssetLibraryPanel
           isOpen={isAssetLibraryOpen}
