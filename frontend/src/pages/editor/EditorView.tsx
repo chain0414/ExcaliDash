@@ -20,10 +20,7 @@ import { GridStepSelector } from "../../components/GridStepSelector";
 import type { UserIdentity } from "../../utils/identity";
 import { UIOptions } from "./shared";
 import { AssetLibraryPanel } from "./AssetLibraryPanel";
-
-interface Peer extends UserIdentity {
-  isActive: boolean;
-}
+import { visiblePeers, type PresencePeer } from "./visiblePeers";
 
 type EditorViewProps = {
   id?: string;
@@ -43,7 +40,7 @@ type EditorViewProps = {
   loadError: string | null;
   me: UserIdentity;
   newName: string;
-  peers: Peer[];
+  peers: PresencePeer[];
   theme: string;
   onBackClick: () => void;
   onCanvasChange: (elements: readonly any[], appState: any, files?: Record<string, any>) => void;
@@ -183,12 +180,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
           <button
             type="button"
             onClick={onAssetLibraryToggle}
-            aria-label="Hand-drawn icon library"
+            aria-label="手绘图标库"
             aria-pressed={isAssetLibraryOpen}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg text-gray-600 dark:text-gray-300 transition-colors"
-            title="Hand-drawn icon library"
+            className={clsx("flex items-center gap-1.5 px-2.5 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 transition-colors", isAssetLibraryOpen && "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200")}
+            title="搜索并插入云端手绘 SVG 图标"
           >
             <Shapes size={20} />
+            <span>手绘图标</span>
           </button>
         ) : null}
         {canEdit && autosaveFailing ? (
@@ -242,14 +240,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
         <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
         <div className="flex items-center">
           <UserAvatar user={me} label={`${me.name} (You)`} />
-          <div className="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2" />
+          {visiblePeers(peers, me).length > 0 && <div className="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2" />}
           <div className="flex items-center gap-2">
-            {peers.map((peer) => (
+            {visiblePeers(peers, me).map((peer) => (
               <UserAvatar
                 key={peer.id}
                 user={peer}
                 label={peer.name}
-                inactive={!peer.isActive}
               />
             ))}
           </div>
