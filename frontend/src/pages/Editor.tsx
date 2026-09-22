@@ -345,7 +345,7 @@ const ExcalidrawEditor: React.FC = () => {
     latestFilesRef.current = files;
     await enqueueSceneSave(id, safeElements, appState, files, { suppressErrors: false });
     await savePreviewRef.current?.(id, safeElements, appState, files);
-  }, [accessLevel, enqueueSceneSave, id, isSceneLoading, loadError, resolveSafeSnapshot]);
+  }, [accessLevel, enqueueSceneSave, id, isSceneLoading, loadError, resolveSafeSnapshot, saveDataRef, savePreviewRef]);
   const openImageExport = useCallback(() => {
     if (!excalidrawAPI.current || isSceneLoading || loadError) return;
     const elements = excalidrawAPI.current.getSceneElementsIncludingDeleted();

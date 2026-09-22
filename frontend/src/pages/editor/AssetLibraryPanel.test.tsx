@@ -12,6 +12,22 @@ vi.mock("./insertDrawingAsset", () => ({ insertDrawingAsset: mocked.insert }));
 
 describe("AssetLibraryPanel", () => {
   beforeEach(() => vi.clearAllMocks());
+  it("shows the two imported libraries as the first two categories", async () => {
+    mocked.catalog.mockResolvedValue([
+      { id: "ai", version: 1, name: "dashboard-grid", source: "wayne-ai-data", usageCount: 1 },
+      { id: "user", version: 1, name: "user-check", source: "wayne-users-product", usageCount: 2 },
+      { id: "old", version: 1, name: "database-hand", source: "streamline-freehand", usageCount: 3 },
+    ]);
+    mocked.previews.mockImplementation(async (ids: string[]) => ids.map((id) =>
+      ({ id, version: 1, dataURL: "data:image/svg+xml;base64,PHN2Zy8+" })));
+    render(<AssetLibraryPanel isOpen canEdit excalidrawAPIRef={{ current: {} }} onClose={vi.fn()} />);
+    const labels = () => within(screen.getByLabelText("图标分类")).getAllByRole("button")
+      .map((button) => button.textContent?.replace(/\s+\d+$/, ""));
+    await screen.findAllByRole("button", { name: "插入 dashboard-grid" });
+    expect(labels().slice(1, 3)).toEqual(["AI 与数据", "用户与产品"]);
+    fireEvent.click(screen.getByRole("tab", { name: "推荐" }));
+    expect(labels().slice(1, 3)).toEqual(["AI 与数据", "用户与产品"]);
+  });
   it("filters locally, shows a zero-result state, and exposes categories and recommendations", async () => {
     mocked.previews.mockImplementation(async (ids: string[]) => ids.map((id) =>
       ({ id, version: 1, dataURL: "data:image/svg+xml;base64,PHN2Zy8+" })));

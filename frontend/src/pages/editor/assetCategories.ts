@@ -1,13 +1,26 @@
 import type { DrawingAsset } from "../../api/assets";
 
 export const CATEGORY_LABELS = [
+  "AI 与数据", "用户与产品",
   "通用操作", "文件与知识", "数据与图表", "安全与设置", "沟通与社交",
   "科技与设备", "设计与创作", "工作与商务", "金融与购物",
   "旅行与生活", "媒体与娱乐", "人物与健康",
 ] as const;
 export type AssetCategory = typeof CATEGORY_LABELS[number];
 
-const PINNED_CATEGORY_COUNT = 7;
+const PINNED_CATEGORY_COUNT = 9;
+const CUSTOM_CATEGORIES: Record<string, AssetCategory> = {
+  "wayne-ai-data": "AI 与数据",
+  "wayne-users-product": "用户与产品",
+};
+export const sortRecommendedCategories = (usages: Map<AssetCategory, number>): AssetCategory[] =>
+  CATEGORY_LABELS.filter((label) => (usages.get(label) ?? 0) > 0)
+    .sort((a, b) => {
+      const aPinned = CATEGORY_LABELS.indexOf(a) < 2;
+      const bPinned = CATEGORY_LABELS.indexOf(b) < 2;
+      return aPinned && bPinned ? CATEGORY_LABELS.indexOf(a) - CATEGORY_LABELS.indexOf(b)
+        : aPinned ? -1 : bPinned ? 1 : (usages.get(b) ?? 0) - (usages.get(a) ?? 0);
+    });
 export const shuffledCategoryOrder = (random: () => number = Math.random): AssetCategory[] => {
   const remainder: AssetCategory[] = [...CATEGORY_LABELS.slice(PINNED_CATEGORY_COUNT)];
   for (let index = remainder.length - 1; index > 0; index -= 1) {
@@ -17,7 +30,7 @@ export const shuffledCategoryOrder = (random: () => number = Math.random): Asset
   return [...CATEGORY_LABELS.slice(0, PINNED_CATEGORY_COUNT), ...remainder];
 };
 
-const PREFIXES: Record<AssetCategory, string> = {
+const PREFIXES: Partial<Record<AssetCategory, string>> = {
   "设计与创作": "design creativity edit graphic vectors composition color crop retouch photo picture image camera lens layers layouts shape drawing taking",
   "工作与商务": "business work worker workflow office job task project products product strategy meeting collaboration organization crm customer performance optimization monetization advertising presentation seo desk",
   "科技与设备": "android app apps arduino bluetooth cables cell cellular charging cloud computer desktop digital hard keyboard laptop memory microprocessor mobile mobilephone modern module mouse network programming code coding server sim smart smartphone tablet terminal vibrate website webcam wifi wireless screen qr",
@@ -34,11 +47,11 @@ const PREFIXES: Record<AssetCategory, string> = {
 
 const BY_PREFIX = new Map<string, AssetCategory>();
 for (const label of CATEGORY_LABELS) {
-  for (const prefix of PREFIXES[label].split(" ")) BY_PREFIX.set(prefix, label);
+  for (const prefix of (PREFIXES[label] ?? "").split(" ").filter(Boolean)) BY_PREFIX.set(prefix, label);
 }
 
 export const assetCategory = (asset: DrawingAsset): AssetCategory =>
-  BY_PREFIX.get(asset.name.split("-")[0].toLowerCase()) ?? "通用操作";
+  CUSTOM_CATEGORIES[asset.source] ?? BY_PREFIX.get(asset.name.split("-")[0].toLowerCase()) ?? "通用操作";
 
 export const assetSearchText = (asset: DrawingAsset) =>
   [asset.name, asset.source, ...(asset.aliasesZh ?? []), ...(asset.aliasesEn ?? []), ...(asset.tags ?? [])]

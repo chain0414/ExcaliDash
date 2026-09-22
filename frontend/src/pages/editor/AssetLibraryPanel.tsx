@@ -5,7 +5,7 @@ import {
   getDrawingAsset, getDrawingAssetCatalog, getDrawingAssetPreviews, recordDrawingAssetUse,
   type DrawingAsset,
 } from "../../api";
-import { assetCategory, byUsage, CATEGORY_LABELS, matchesAssetQuery, shuffledCategoryOrder, type AssetCategory } from "./assetCategories";
+import { assetCategory, byUsage, matchesAssetQuery, shuffledCategoryOrder, sortRecommendedCategories, type AssetCategory } from "./assetCategories";
 import { insertDrawingAsset } from "./insertDrawingAsset";
 
 type Props = {
@@ -57,9 +57,7 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
     for (const asset of assets) counts.set(assetCategory(asset), (counts.get(assetCategory(asset)) ?? 0) + (asset.usageCount ?? 0));
     return counts;
   }, [assets]);
-  const recommendedCategories = useMemo(() => CATEGORY_LABELS
-    .filter((label) => (categoryUsage.get(label) ?? 0) > 0)
-    .sort((a, b) => (categoryUsage.get(b) ?? 0) - (categoryUsage.get(a) ?? 0)), [categoryUsage]);
+  const recommendedCategories = useMemo(() => sortRecommendedCategories(categoryUsage), [categoryUsage]);
   const filtered = useMemo(() => assets
     .filter((asset) => matchesAssetQuery(asset, search))
     .filter((asset) => !category || assetCategory(asset) === category)
