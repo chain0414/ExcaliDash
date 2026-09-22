@@ -22,6 +22,7 @@ model User {
   authIdentities      AuthIdentity[]
   drawings            Drawing[]
   templates           Template[]
+  assets              Asset[]
   collections         Collection[]
   drawingPermissions  DrawingPermission[]
   collectionShares    CollectionShare[]
@@ -104,6 +105,32 @@ model Template {
   updatedAt DateTime @updatedAt
 
   @@index([userId, updatedAt])
+}
+
+// User-owned, self-contained SVG components. Search text is normalized at
+// write time so Chinese aliases and English names are queried together.
+model Asset {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  source     String
+  sourceUrl  String?
+  license    String
+  aliasesZh  String   @default("[]")
+  aliasesEn  String   @default("[]")
+  tags       String   @default("[]")
+  searchText String
+  svg        String
+  sha256     String
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, source, name])
+  @@index([userId, sha256])
+  @@index([userId, name])
+  @@index([userId, createdAt])
 }
 
 model DrawingSnapshot {

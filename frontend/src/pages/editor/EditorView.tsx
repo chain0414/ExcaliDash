@@ -8,6 +8,7 @@ import {
   Download,
   History,
   Loader2,
+  Shapes,
   Share2,
 } from "lucide-react";
 import clsx from "clsx";
@@ -18,6 +19,7 @@ import {
 import { GridStepSelector } from "../../components/GridStepSelector";
 import type { UserIdentity } from "../../utils/identity";
 import { UIOptions } from "./shared";
+import { AssetLibraryPanel } from "./AssetLibraryPanel";
 
 interface Peer extends UserIdentity {
   isActive: boolean;
@@ -33,6 +35,7 @@ type EditorViewProps = {
   editorContainerRef: React.RefObject<HTMLDivElement>;
   initialData: any;
   isHeaderVisible: boolean;
+  isAssetLibraryOpen: boolean;
   isRenaming: boolean;
   isSavingOnLeave: boolean;
   isSceneLoading: boolean;
@@ -59,6 +62,9 @@ type EditorViewProps = {
   onSetGridStep: (gridStep: number) => void;
   onShareOpen: () => void;
   onHistoryOpen: () => void;
+  onAssetLibraryToggle: () => void;
+  onAssetLibraryClose: () => void;
+  excalidrawAPIRef: React.MutableRefObject<any>;
   onToggleAutoHide: () => void;
 };
 
@@ -97,6 +103,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   editorContainerRef,
   initialData,
   isHeaderVisible,
+  isAssetLibraryOpen,
   isRenaming,
   isSavingOnLeave,
   isSceneLoading,
@@ -123,6 +130,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onSetGridStep,
   onShareOpen,
   onHistoryOpen,
+  onAssetLibraryToggle,
+  onAssetLibraryClose,
+  excalidrawAPIRef,
   onToggleAutoHide,
 }) => (
   <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden">
@@ -169,6 +179,18 @@ export const EditorView: React.FC<EditorViewProps> = ({
         )}
       </div>
       <div className="flex items-center gap-3">
+        {canEdit && id ? (
+          <button
+            type="button"
+            onClick={onAssetLibraryToggle}
+            aria-label="Hand-drawn icon library"
+            aria-pressed={isAssetLibraryOpen}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-lg text-gray-600 dark:text-gray-300 transition-colors"
+            title="Hand-drawn icon library"
+          >
+            <Shapes size={20} />
+          </button>
+        ) : null}
         {canEdit && autosaveFailing ? (
           <span
             className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200 border border-red-200 dark:border-red-800"
@@ -296,6 +318,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
         </div>
       )}
       <Toaster position="bottom-center" />
+      {initialData && canEdit && (
+        <AssetLibraryPanel
+          isOpen={isAssetLibraryOpen}
+          canEdit={canEdit}
+          excalidrawAPIRef={excalidrawAPIRef}
+          onClose={onAssetLibraryClose}
+        />
+      )}
     </div>
   </div>
 );

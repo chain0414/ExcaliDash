@@ -35,6 +35,8 @@ const normalizeApiKeyScopes = (scopes: string[] | undefined): string[] | null =>
     ...DEFAULT_API_KEY_SCOPES,
     "templates:read",
     "templates:write",
+    "assets:read",
+    "assets:write",
   ]);
   const normalized = Array.from(new Set(scopes.map((scope) => scope.trim()).filter(Boolean)));
   if (normalized.length === 0 || normalized.some((scope) => !allowedScopes.has(scope))) {

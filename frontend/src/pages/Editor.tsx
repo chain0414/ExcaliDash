@@ -50,6 +50,7 @@ const ExcalidrawEditor: React.FC = () => {
   const [langCode, setLangCode] = usePreference("language", getInitialLangCode());
   const [gridStep, setGridStep] = usePreference("gridStep", DEFAULT_GRID_STEP);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAssetLibraryOpen, setIsAssetLibraryOpen] = useState(false);
   const previewBackup = useRef<{
     elements: readonly any[];
     appState: any;
@@ -330,6 +331,7 @@ const ExcalidrawEditor: React.FC = () => {
         editorContainerRef={editorContainerRef}
         initialData={initialData}
         isHeaderVisible={isHeaderVisible}
+        isAssetLibraryOpen={isAssetLibraryOpen}
         isRenaming={isRenaming}
         isSavingOnLeave={isSavingOnLeave}
         isSceneLoading={isSceneLoading}
@@ -356,6 +358,9 @@ const ExcalidrawEditor: React.FC = () => {
         onSetGridStep={setGridStep}
         onShareOpen={() => setIsShareOpen(true)}
         onHistoryOpen={() => setIsHistoryOpen(true)}
+        onAssetLibraryToggle={() => setIsAssetLibraryOpen((value) => !value)}
+        onAssetLibraryClose={() => setIsAssetLibraryOpen(false)}
+        excalidrawAPIRef={excalidrawAPI}
         onToggleAutoHide={handleToggleAutoHide}
       />
       <EditorDialogs
