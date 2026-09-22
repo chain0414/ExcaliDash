@@ -155,6 +155,27 @@ export const registerAssetRoutes = (
     })) });
   }));
 
+  // Fetch only the previews visible in the panel, in bounded batches.
+  app.get("/assets/previews", requireAuth, asyncHandler(async (req, res) => {
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    const rawIds = typeof req.query.ids === "string" ? req.query.ids : "";
+    const ids = rawIds.split(",");
+    if (!ids.length || ids.length > 100 || ids.some((id) => !/^[0-9a-f-]{36}$/i.test(id)) ||
+      new Set(ids).size !== ids.length) {
+      return res.status(400).json({ error: "Invalid asset ids" });
+    }
+    const assets = await prisma.asset.findMany({
+      where: { userId: req.user.id, id: { in: ids } },
+      select: { id: true, version: true, svg: true },
+    });
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.json({ previews: assets.map((asset) => ({
+      id: asset.id,
+      version: asset.version,
+      dataURL: `data:image/svg+xml;base64,${Buffer.from(asset.svg, "utf8").toString("base64")}`,
+    })) });
+  }));
+
   app.post("/assets/:id/use", requireAuth, asyncHandler(async (req, res) => {
     if (!req.user) return res.status(401).json({ error: "Unauthorized" });
     if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "Invalid asset id" });

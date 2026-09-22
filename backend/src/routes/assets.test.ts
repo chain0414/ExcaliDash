@@ -78,6 +78,17 @@ describe("owned SVG assets", () => {
       .set("Authorization", `Bearer ${ownerToken}`);
     expect(preview.status).toBe(200);
     expect(preview.headers["content-type"]).toMatch(/image\/svg\+xml/);
+    const batch = await request(app).get(`/assets/previews?ids=${id},${second.body.asset.id}`)
+      .set("Authorization", `Bearer ${ownerToken}`);
+    expect(batch.status).toBe(200);
+    expect(batch.body.previews).toHaveLength(2);
+    expect(Buffer.from(batch.body.previews[0].dataURL.split(",")[1], "base64").toString("utf8"))
+      .toContain("<svg");
+    expect((await request(app).get(`/assets/previews?ids=${id}`)
+      .set("Authorization", `Bearer ${otherToken}`)).body.previews).toEqual([]);
+    expect((await request(app).get(`/assets/previews?ids=${id},${id}`)
+      .set("Authorization", `Bearer ${ownerToken}`)).status).toBe(400);
+    expect((await request(app).get(`/assets/previews?ids=${id}`)).status).toBe(401);
     expect((await request(app).get(`/assets/${id}`).set("Authorization", `Bearer ${otherToken}`)).status).toBe(404);
     expect((await request(app).get("/assets?q=地图").set("Authorization", `Bearer ${otherToken}`)).body.assets).toEqual([]);
   });

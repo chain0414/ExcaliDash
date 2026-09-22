@@ -10,6 +10,7 @@ export type DrawingAsset = {
   aliasesEn?: string[];
   tags?: string[];
   previewUrl?: string;
+  version?: number;
   usageCount?: number;
   lastUsedAt?: string | null;
 };
@@ -37,6 +38,15 @@ export const getDrawingAsset = async (id: string) => {
 export const getDrawingAssetCatalog = async (signal?: AbortSignal) => {
   const response = await api.get<{ assets: DrawingAsset[] }>("/assets/catalog", { signal });
   return response.data.assets;
+};
+
+export type DrawingAssetPreview = { id: string; version: number; dataURL: string };
+
+export const getDrawingAssetPreviews = async (ids: string[], signal?: AbortSignal) => {
+  const response = await api.get<{ previews: DrawingAssetPreview[] }>("/assets/previews", {
+    params: { ids: ids.join(",") }, signal,
+  });
+  return response.data.previews;
 };
 
 export const recordDrawingAssetUse = async (id: string) => {

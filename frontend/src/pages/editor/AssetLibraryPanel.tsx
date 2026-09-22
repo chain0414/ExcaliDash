@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  API_URL, getDrawingAsset, getDrawingAssetCatalog, recordDrawingAssetUse,
+  getDrawingAsset, getDrawingAssetCatalog, getDrawingAssetPreviews, recordDrawingAssetUse,
   type DrawingAsset,
 } from "../../api";
 import { assetCategory, byUsage, CATEGORY_LABELS, matchesAssetQuery, type AssetCategory } from "./assetCategories";
@@ -16,8 +16,7 @@ type Props = {
 };
 type Tab = "all" | "recommended";
 
-const assetPreviewUrl = (asset: DrawingAsset) =>
-  `${API_URL.replace(/\/$/, "")}/assets/${encodeURIComponent(asset.id)}/svg`;
+const previewKey = (asset: DrawingAsset) => `${asset.id}:${asset.version ?? 0}`;
 
 export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidrawAPIRef, onClose }) => {
   const [search, setSearch] = useState("");
@@ -29,6 +28,9 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
   const [retry, setRetry] = useState(0);
   const [insertingId, setInsertingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(60);
+  const [previewCache, setPreviewCache] = useState<Record<string, string>>({});
+  const [previewError, setPreviewError] = useState(false);
+  const [previewRetry, setPreviewRetry] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -64,8 +66,40 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
     .sort(byUsage), [assets, search, category, tab, categoryUsage]);
   const frequent = useMemo(() => assets.filter((asset) => (asset.usageCount ?? 0) > 0)
     .sort(byUsage).slice(0, 9), [assets]);
-  const categories = tab === "recommended" ? recommendedCategories : CATEGORY_LABELS.filter((label) => categoryCounts.has(label));
+  const categories = useMemo(() => tab === "recommended" ? recommendedCategories
+    : CATEGORY_LABELS.filter((label) => categoryCounts.has(label)),
+  [tab, recommendedCategories, categoryCounts]);
   const grouped = !search.trim() && !category;
+  const visibleAssets = useMemo(() => grouped
+    ? [...frequent, ...categories.flatMap((label) => filtered
+      .filter((asset) => assetCategory(asset) === label).slice(0, 9))]
+    : filtered.slice(0, visibleCount),
+  [grouped, frequent, categories, filtered, visibleCount]);
+
+  useEffect(() => {
+    if (!isOpen || loading || error) return;
+    const missing = [...new Map(visibleAssets
+      .filter((asset) => !previewCache[previewKey(asset)])
+      .map((asset) => [asset.id, asset])).values()];
+    if (!missing.length) return;
+    const controller = new AbortController();
+    const batches: string[][] = [];
+    for (let i = 0; i < missing.length; i += 100) {
+      batches.push(missing.slice(i, i + 100).map((asset) => asset.id));
+    }
+    Promise.all(batches.map((ids) => getDrawingAssetPreviews(ids, controller.signal)))
+      .then((results) => {
+        if (controller.signal.aborted) return;
+        const previews = results.flat();
+        if (previews.length !== missing.length) throw new Error("Incomplete preview batch");
+        setPreviewCache((current) => ({ ...current, ...Object.fromEntries(
+          previews.map((preview) => [`${preview.id}:${preview.version}`, preview.dataURL]),
+        ) }));
+        setPreviewError(false);
+      })
+      .catch(() => { if (!controller.signal.aborted) setPreviewError(true); });
+    return () => controller.abort();
+  }, [isOpen, loading, error, visibleAssets, previewCache, previewRetry]);
 
   const insert = async (asset: DrawingAsset) => {
     if (!canEdit || !excalidrawAPIRef.current || insertingId) return;
@@ -97,7 +131,9 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
       className="min-w-0 flex flex-col items-center gap-2 rounded-lg border border-gray-200 dark:border-neutral-700 p-2 text-gray-800 dark:text-gray-200 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-neutral-800 disabled:opacity-50"
     >
       <span className="w-14 h-14 flex items-center justify-center">
-        <img src={assetPreviewUrl(asset)} alt="" loading="lazy" className="max-w-full max-h-full" />
+        {previewCache[previewKey(asset)]
+          ? <img src={previewCache[previewKey(asset)]} alt="" className="max-w-full max-h-full" />
+          : <span aria-hidden="true" className="w-8 h-8 rounded bg-gray-100 dark:bg-neutral-800" />}
       </span>
       <span className="w-full truncate text-xs font-medium">{asset.name}</span>
       {(asset.usageCount ?? 0) > 0 && <span className="w-full truncate text-[10px] text-indigo-600 dark:text-indigo-300">已用 {asset.usageCount} 次</span>}
@@ -134,6 +170,7 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {loading && <p role="status" className="text-sm text-gray-500 flex gap-2 items-center"><Loader2 size={16} className="animate-spin" />正在加载图标…</p>}
         {error && <div role="alert" className="text-sm text-red-700 dark:text-red-300">加载图标失败。<button type="button" className="underline" onClick={() => setRetry((value) => value + 1)}>重试</button></div>}
+        {previewError && !error && <div role="alert" className="mb-3 text-sm text-red-700 dark:text-red-300">部分图标预览加载失败。<button type="button" className="underline" onClick={() => { setPreviewError(false); setPreviewRetry((value) => value + 1); }}>重试</button></div>}
         {!loading && !error && tab === "recommended" && recommendedCategories.length === 0 &&
           <p className="text-sm text-gray-500">还没有使用记录。先从“全部图标”插入图标，推荐和偏好分类会随使用更新。</p>}
         {!loading && !error && filtered.length === 0 && (tab === "all" || recommendedCategories.length > 0) &&
