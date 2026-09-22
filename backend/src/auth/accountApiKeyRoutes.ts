@@ -31,7 +31,13 @@ const serializeApiKeyMetadata = (apiKey: {
 
 const normalizeApiKeyScopes = (scopes: string[] | undefined): string[] | null => {
   if (!scopes) return [...DEFAULT_API_KEY_SCOPES];
-  const allowedScopes = new Set<string>(DEFAULT_API_KEY_SCOPES);
+  const allowedScopes = new Set<string>([
+    ...DEFAULT_API_KEY_SCOPES,
+    "templates:read",
+    "templates:write",
+    "assets:read",
+    "assets:write",
+  ]);
   const normalized = Array.from(new Set(scopes.map((scope) => scope.trim()).filter(Boolean)));
   if (normalized.length === 0 || normalized.some((scope) => !allowedScopes.has(scope))) {
     return null;

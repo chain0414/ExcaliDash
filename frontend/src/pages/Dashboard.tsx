@@ -19,6 +19,9 @@ import { useDashboardDrawingActions } from "./dashboard/useDashboardDrawingActio
 import { useDashboardSelection } from "./dashboard/useDashboardSelection";
 import { useDashboardSort } from "./dashboard/useDashboardSort";
 import { displayFontFamily } from "../utils/displayFont";
+import { TemplateGallery } from "./dashboard/TemplateGallery";
+import { SaveTemplateDialog } from "./dashboard/SaveTemplateDialog";
+import type { DrawingSummary } from "../types";
 const PAGE_SIZE = 24;
 export const Dashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -43,6 +46,7 @@ export const Dashboard: React.FC = () => {
     }
   };
   const [search, setSearch] = useState("");
+  const [templateSource, setTemplateSource] = useState<DrawingSummary | null>(null);
   const debouncedSearch = useDebounce(search, 300);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkMoveMenu, setShowBulkMoveMenu] = useState(false);
@@ -157,6 +161,20 @@ export const Dashboard: React.FC = () => {
     () => collections.filter((c) => c.id !== "trash"),
     [collections],
   );
+  if (location.pathname === "/templates") {
+    return (
+      <Layout
+        collections={visibleCollections}
+        selectedCollectionId={undefined}
+        onSelectCollection={setSelectedCollectionId}
+        onCreateCollection={collectionActions.handleCreateCollection}
+        onEditCollection={collectionActions.handleEditCollection}
+        onDeleteCollection={collectionActions.handleDeleteCollection}
+      >
+        <TemplateGallery />
+      </Layout>
+    );
+  }
   return (
     <Layout
       collections={visibleCollections}
@@ -261,6 +279,7 @@ export const Dashboard: React.FC = () => {
           onDelete={actions.handleDeleteDrawing}
           onHide={actions.handleHideSharedDrawing}
           onDuplicate={actions.handleDuplicateDrawing}
+          onSaveAsTemplate={(id) => setTemplateSource(drawings.find((drawing) => drawing.id === id) ?? null)}
           onMoveToCollection={actions.handleMoveToCollection}
           onOpenDrawing={(id) => navigate(`/editor/${id}`)}
           onMouseDown={actions.handleCardMouseDown}
@@ -314,6 +333,14 @@ export const Dashboard: React.FC = () => {
           actions.setShowImportError({ isOpen: false, message: "" })
         }
       />{" "}
+      <SaveTemplateDialog
+        drawing={templateSource}
+        onClose={() => setTemplateSource(null)}
+        onSaved={() => {
+          setTemplateSource(null);
+          navigate("/templates");
+        }}
+      />
     </Layout>
   );
 };

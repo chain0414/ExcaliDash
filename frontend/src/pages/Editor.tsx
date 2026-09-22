@@ -23,6 +23,10 @@ import { useEditorFileUploads } from "./editor/useEditorFileUploads";
 import { useEditorSceneApi } from "./editor/useEditorSceneApi";
 import { useEditorGridStep } from "./editor/useEditorGridStep";
 import { DEFAULT_GRID_STEP } from "../components/GridStepSelector";
+import { SaveTemplateDialog } from "./dashboard/SaveTemplateDialog";
+import { toast } from "sonner";
+import { hasRenderableElements } from "./editor/shared";
+import { ArticleImageExportDialog, type ArticleExportScene } from "./editor/ArticleImageExportDialog";
 
 export const Editor: React.FC = () => {
   return <ExcalidrawEditor />;
@@ -50,6 +54,13 @@ const ExcalidrawEditor: React.FC = () => {
   const [langCode, setLangCode] = usePreference("language", getInitialLangCode());
   const [gridStep, setGridStep] = usePreference("gridStep", DEFAULT_GRID_STEP);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAssetLibraryOpen, setIsAssetLibraryOpen] = useState(false);
+  const [isSaveTemplateOpen, setIsSaveTemplateOpen] = useState(false);
+  const [imageExportScene, setImageExportScene] = useState<ArticleExportScene | null>(null);
+  const templateDrawing = React.useMemo(
+    () => isSaveTemplateOpen && id ? { id, name: drawingName } : null,
+    [drawingName, id, isSaveTemplateOpen],
+  );
   const previewBackup = useRef<{
     elements: readonly any[];
     appState: any;
@@ -317,6 +328,39 @@ const ExcalidrawEditor: React.FC = () => {
     setNewName,
     user,
   });
+  const saveSceneBeforeTemplate = useCallback(async () => {
+    if (accessLevel !== "owner" || !id || isSceneLoading || loadError || !excalidrawAPI.current || !saveDataRef.current) {
+      throw new Error("Drawing is not ready to save as a template");
+    }
+    const elements = excalidrawAPI.current.getSceneElementsIncludingDeleted();
+    const { snapshot: safeElements, prevented } = resolveSafeSnapshot(elements);
+    if (prevented) {
+      throw new Error("Could not verify the current drawing scene");
+    }
+    if (suspiciousBlankLoadRef.current && !hasRenderableElements(safeElements)) {
+      throw new Error("Blank scene detected on load");
+    }
+    const appState = excalidrawAPI.current.getAppState();
+    const files = excalidrawAPI.current.getFiles() || {};
+    latestFilesRef.current = files;
+    await enqueueSceneSave(id, safeElements, appState, files, { suppressErrors: false });
+    await savePreviewRef.current?.(id, safeElements, appState, files);
+  }, [accessLevel, enqueueSceneSave, id, isSceneLoading, loadError, resolveSafeSnapshot]);
+  const openImageExport = useCallback(() => {
+    if (!excalidrawAPI.current || isSceneLoading || loadError) return;
+    const elements = excalidrawAPI.current.getSceneElementsIncludingDeleted();
+    const { snapshot: safeElements, prevented } = resolveSafeSnapshot(elements);
+    if (prevented || !hasRenderableElements(safeElements)) {
+      toast.error("Drawing is not ready to export");
+      return;
+    }
+    setImageExportScene({
+      name: drawingName,
+      elements: safeElements,
+      appState: excalidrawAPI.current.getAppState(),
+      files: excalidrawAPI.current.getFiles() || {},
+    });
+  }, [drawingName, isSceneLoading, loadError, resolveSafeSnapshot]);
 
   return (
     <>
@@ -330,6 +374,7 @@ const ExcalidrawEditor: React.FC = () => {
         editorContainerRef={editorContainerRef}
         initialData={initialData}
         isHeaderVisible={isHeaderVisible}
+        isAssetLibraryOpen={isAssetLibraryOpen}
         isRenaming={isRenaming}
         isSavingOnLeave={isSavingOnLeave}
         isSceneLoading={isSceneLoading}
@@ -343,6 +388,7 @@ const ExcalidrawEditor: React.FC = () => {
         onCanvasChange={handleCanvasChange}
         onCanvasDropCapture={handleCanvasDropCapture}
         onExportClick={handleExportClick}
+        onImageExportOpen={openImageExport}
         onLibraryChange={handleLibraryChange}
         onNavigateHome={() => navigate("/")}
         onNewNameChange={setNewName}
@@ -356,6 +402,10 @@ const ExcalidrawEditor: React.FC = () => {
         onSetGridStep={setGridStep}
         onShareOpen={() => setIsShareOpen(true)}
         onHistoryOpen={() => setIsHistoryOpen(true)}
+        onSaveTemplateOpen={() => setIsSaveTemplateOpen(true)}
+        onAssetLibraryToggle={() => setIsAssetLibraryOpen((value) => !value)}
+        onAssetLibraryClose={() => setIsAssetLibraryOpen(false)}
+        excalidrawAPIRef={excalidrawAPI}
         onToggleAutoHide={handleToggleAutoHide}
       />
       <EditorDialogs
@@ -368,6 +418,16 @@ const ExcalidrawEditor: React.FC = () => {
         onCloseHistory={() => setIsHistoryOpen(false)}
         onCloseShare={() => setIsShareOpen(false)}
       />
+      <SaveTemplateDialog
+        drawing={templateDrawing}
+        beforeSave={saveSceneBeforeTemplate}
+        onClose={() => setIsSaveTemplateOpen(false)}
+        onSaved={() => {
+          setIsSaveTemplateOpen(false);
+          toast.success("Template saved");
+        }}
+      />
+      <ArticleImageExportDialog scene={imageExportScene} langCode={langCode} onClose={() => setImageExportScene(null)} />
     </>
   );
 };

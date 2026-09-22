@@ -89,6 +89,17 @@ export const isS3Enabled = (): boolean =>
 /** Returns the active S3 configuration, or null if S3 is disabled. */
 export const getS3Config = (): S3Config | null => s3Config;
 
+/** Read source drawing bytes while taking a self-contained template snapshot. */
+export const downloadBuffer = async (key: string): Promise<Buffer> => {
+  if (!s3Client || !s3Config) throw new Error("S3 is not configured");
+  const response = await s3Client.send(new GetObjectCommand({
+    Bucket: s3Config.bucket,
+    Key: key,
+  }));
+  if (!response.Body) throw new Error("S3 object has no body");
+  return Buffer.from(await response.Body.transformToByteArray());
+};
+
 /**
  * Generate a presigned GET URL for reading a private S3 object.
  * @param key             S3 object key

@@ -79,6 +79,10 @@ export const API_KEY_SCOPES = [
   "drawings:write",
   "collections:read",
   "collections:write",
+  "templates:read",
+  "templates:write",
+  "assets:read",
+  "assets:write",
 ] as const;
 
 const fetchCsrfToken = async (): Promise<void> => {

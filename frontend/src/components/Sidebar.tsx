@@ -6,7 +6,9 @@ import {
   Archive,
   FolderOpen,
   Shield,
+  LayoutTemplate,
 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { Collection } from "../types";
 import clsx from "clsx";
 import { ConfirmModal } from "./ConfirmModal";
@@ -41,6 +43,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDrop,
 }) => {
   const { logout, user, authEnabled } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isCreating, setIsCreating] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -115,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => onSelectCollection(undefined)}
                 className={clsx(
                   "w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold rounded-lg transition-all duration-200 border-2",
-                  selectedCollectionId === undefined
+                  selectedCollectionId === undefined && location.pathname !== "/templates"
                     ? "bg-indigo-50 dark:bg-neutral-800 text-indigo-900 dark:text-neutral-200 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] -translate-y-0.5"
                     : "text-slate-600 dark:text-neutral-400 border-transparent hover:bg-slate-50 dark:hover:bg-neutral-800 hover:border-black dark:hover:border-neutral-700 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] hover:-translate-y-0.5",
                 )}
@@ -123,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <LayoutGrid
                   size={18}
                   className={clsx(
-                    selectedCollectionId === undefined
+                    selectedCollectionId === undefined && location.pathname !== "/templates"
                       ? "text-indigo-900 dark:text-neutral-200"
                       : "text-slate-400 dark:text-neutral-500",
                   )}
@@ -137,6 +141,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               label="Shared with me"
               isActive={selectedCollectionId === "shared"}
               onClick={() => onSelectCollection("shared")}
+            />
+            <SidebarItem
+              id={"templates"}
+              icon={<LayoutTemplate size={18} />}
+              label="Templates"
+              isActive={location.pathname === "/templates"}
+              onClick={() => navigate("/templates")}
             />
             <SidebarItem
               id={null}

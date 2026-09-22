@@ -8,6 +8,10 @@ const API_KEY_SCOPE_LABELS: Record<string, string> = {
   "drawings:write": "Write drawings",
   "collections:read": "Read collections",
   "collections:write": "Write collections",
+  "templates:read": "Read templates",
+  "templates:write": "Write templates",
+  "assets:read": "Read assets",
+  "assets:write": "Write assets",
 };
 
 const getApiErrorMessage = (err: unknown, fallback: string) => {

@@ -7,6 +7,7 @@ import {
   CloudOff,
   Download,
   History,
+  LayoutTemplate,
   Loader2,
   Share2,
 } from "lucide-react";
@@ -18,10 +19,9 @@ import {
 import { GridStepSelector } from "../../components/GridStepSelector";
 import type { UserIdentity } from "../../utils/identity";
 import { UIOptions } from "./shared";
-
-interface Peer extends UserIdentity {
-  isActive: boolean;
-}
+import { AssetLibraryPanel } from "./AssetLibraryPanel";
+import { ToolbarAssetButton } from "./ToolbarAssetButton";
+import { visiblePeers, type PresencePeer } from "./visiblePeers";
 
 type EditorViewProps = {
   id?: string;
@@ -33,6 +33,7 @@ type EditorViewProps = {
   editorContainerRef: React.RefObject<HTMLDivElement>;
   initialData: any;
   isHeaderVisible: boolean;
+  isAssetLibraryOpen: boolean;
   isRenaming: boolean;
   isSavingOnLeave: boolean;
   isSceneLoading: boolean;
@@ -40,12 +41,13 @@ type EditorViewProps = {
   loadError: string | null;
   me: UserIdentity;
   newName: string;
-  peers: Peer[];
+  peers: PresencePeer[];
   theme: string;
   onBackClick: () => void;
   onCanvasChange: (elements: readonly any[], appState: any, files?: Record<string, any>) => void;
   onCanvasDropCapture: (event: React.DragEvent<HTMLDivElement>) => void;
   onExportClick: () => void;
+  onImageExportOpen: () => void;
   onLibraryChange: (items: readonly any[]) => void;
   onNavigateHome: () => void;
   onNewNameChange: (value: string) => void;
@@ -59,6 +61,10 @@ type EditorViewProps = {
   onSetGridStep: (gridStep: number) => void;
   onShareOpen: () => void;
   onHistoryOpen: () => void;
+  onSaveTemplateOpen: () => void;
+  onAssetLibraryToggle: () => void;
+  onAssetLibraryClose: () => void;
+  excalidrawAPIRef: React.MutableRefObject<any>;
   onToggleAutoHide: () => void;
 };
 
@@ -97,6 +103,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   editorContainerRef,
   initialData,
   isHeaderVisible,
+  isAssetLibraryOpen,
   isRenaming,
   isSavingOnLeave,
   isSceneLoading,
@@ -110,6 +117,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onCanvasChange,
   onCanvasDropCapture,
   onExportClick,
+  onImageExportOpen,
   onLibraryChange,
   onNavigateHome,
   onNewNameChange,
@@ -123,6 +131,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onSetGridStep,
   onShareOpen,
   onHistoryOpen,
+  onSaveTemplateOpen,
+  onAssetLibraryToggle,
+  onAssetLibraryClose,
+  excalidrawAPIRef,
   onToggleAutoHide,
 }) => (
   <div className="h-screen flex flex-col bg-white dark:bg-neutral-950 overflow-hidden">
@@ -220,14 +232,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
         <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
         <div className="flex items-center">
           <UserAvatar user={me} label={`${me.name} (You)`} />
-          <div className="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2" />
+          {visiblePeers(peers, me).length > 0 && <div className="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2" />}
           <div className="flex items-center gap-2">
-            {peers.map((peer) => (
+            {visiblePeers(peers, me).map((peer) => (
               <UserAvatar
                 key={peer.id}
                 user={peer}
                 label={peer.name}
-                inactive={!peer.isActive}
               />
             ))}
           </div>
@@ -275,7 +286,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
         >
           <MainMenu>
             <MainMenu.DefaultItems.ToggleTheme />
-            <MainMenu.DefaultItems.SaveAsImage />
+            <MainMenu.Item icon={<Download size={20} />} onSelect={onImageExportOpen}>
+              {langCode.startsWith("zh") ? "导出图片…" : "Export image…"}
+            </MainMenu.Item>
+            {accessLevel === "owner" && id ? (
+              <MainMenu.Item
+                icon={<LayoutTemplate size={20} />}
+                onSelect={onSaveTemplateOpen}
+              >
+                {langCode.startsWith("zh") ? "保存为模板" : "Save as template"}
+              </MainMenu.Item>
+            ) : null}
             <MainMenu.DefaultItems.ClearCanvas />
             <MainMenu.DefaultItems.ChangeCanvasBackground />
             <MainMenu.DefaultItems.Help />
@@ -296,6 +317,21 @@ export const EditorView: React.FC<EditorViewProps> = ({
         </div>
       )}
       <Toaster position="bottom-center" />
+      {initialData && canEdit && id && (
+        <ToolbarAssetButton
+          editorContainerRef={editorContainerRef}
+          isOpen={isAssetLibraryOpen}
+          onToggle={onAssetLibraryToggle}
+        />
+      )}
+      {initialData && canEdit && (
+        <AssetLibraryPanel
+          isOpen={isAssetLibraryOpen}
+          canEdit={canEdit}
+          excalidrawAPIRef={excalidrawAPIRef}
+          onClose={onAssetLibraryClose}
+        />
+      )}
     </div>
   </div>
 );

@@ -8,6 +8,7 @@ import {
   FolderInput,
   HardDrive,
   Loader2,
+  LayoutTemplate,
   PenTool,
   Trash2,
 } from "lucide-react";
@@ -29,6 +30,7 @@ interface DrawingCardContextMenuProps {
   onRename: () => void;
   onMoveToCollection: (id: string, collectionId: string | null) => void;
   onDuplicate: (id: string) => void;
+  onSaveAsTemplate?: (id: string) => void;
   onDelete: (id: string) => void;
   onHide?: (id: string) => void;
   onManageStorage: () => void;
@@ -50,6 +52,7 @@ export const DrawingCardContextMenu: React.FC<DrawingCardContextMenuProps> = ({
   onRename,
   onMoveToCollection,
   onDuplicate,
+  onSaveAsTemplate,
   onDelete,
   onHide,
   onManageStorage,
@@ -149,6 +152,20 @@ export const DrawingCardContextMenu: React.FC<DrawingCardContextMenuProps> = ({
         {exportError && (
           <div className="px-3 py-2 text-xs text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20">
             {exportError}
+          </div>
+        )}
+        {!isTrash && !isShared && onSaveAsTemplate && (
+          <div className="border-t border-slate-100 dark:border-slate-800 mt-2 pt-2">
+            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-neutral-500">Templates</div>
+            <button
+              onClick={() => {
+                onSaveAsTemplate(drawing.id);
+                onClose();
+              }}
+              className="w-full px-3 py-2 text-sm text-left text-slate-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white flex items-center gap-2"
+            >
+              <LayoutTemplate size={14} /> Save as template
+            </button>
           </div>
         )}
         {!isShared ? (

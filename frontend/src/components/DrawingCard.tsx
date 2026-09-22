@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { PenTool, Check, Clock } from "lucide-react";
+import { PenTool, Check, Clock, LayoutTemplate } from "lucide-react";
 import type { DrawingSummary, Collection } from "../types";
 import { formatDistanceToNow } from "date-fns";
 import clsx from "clsx";
@@ -23,6 +23,7 @@ interface DrawingCardProps {
   onHide?: (id: string) => void;
   onMoveToCollection: (id: string, collectionId: string | null) => void;
   onDuplicate: (id: string) => void;
+  onSaveAsTemplate?: (id: string) => void;
   onClick: (id: string, e: React.MouseEvent) => void;
   onDragStart?: (e: React.DragEvent, id: string) => void;
   onMouseDown?: (e: React.MouseEvent, id: string) => void;
@@ -42,6 +43,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
   onHide,
   onMoveToCollection,
   onDuplicate,
+  onSaveAsTemplate,
   onClick,
   onDragStart,
   onMouseDown,
@@ -141,6 +143,21 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
             : "border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)]",
         )}
       >
+        {!isTrash && !isShared && onSaveAsTemplate && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSaveAsTemplate(drawing.id);
+            }}
+            onMouseDown={(event) => event.stopPropagation()}
+            aria-label={`Save ${drawing.name} as template`}
+            title="Save as template"
+            className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 rounded-lg border border-slate-200 dark:border-neutral-700 bg-white/95 dark:bg-neutral-900/95 px-2 py-1 text-[11px] font-bold text-slate-600 dark:text-neutral-300 shadow-sm hover:text-indigo-700 dark:hover:text-indigo-300"
+          >
+            <LayoutTemplate size={14} aria-hidden="true" /> Save as template
+          </button>
+        )}
         <div
           className="absolute top-2.5 right-2.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           style={{ opacity: isSelected ? 1 : undefined }}
@@ -278,6 +295,7 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
           }}
           onMoveToCollection={onMoveToCollection}
           onDuplicate={onDuplicate}
+          onSaveAsTemplate={onSaveAsTemplate}
           onDelete={onDelete}
           onHide={onHide}
           onManageStorage={() => {

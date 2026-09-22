@@ -113,6 +113,7 @@ type DrawingsGridProps = {
   onDelete: (id: string) => void;
   onHide: (id: string) => void;
   onDuplicate: (id: string) => void;
+  onSaveAsTemplate: (id: string) => void;
   onMoveToCollection: (id: string, collectionId: string | null) => void;
   onOpenDrawing: (id: string) => void;
   onMouseDown: (event: React.MouseEvent, id: string) => void;
@@ -137,6 +138,7 @@ export const DrawingsGrid: React.FC<DrawingsGridProps> = ({
   onDelete,
   onHide,
   onDuplicate,
+  onSaveAsTemplate,
   onMoveToCollection,
   onOpenDrawing,
   onMouseDown,
@@ -212,6 +214,7 @@ export const DrawingsGrid: React.FC<DrawingsGridProps> = ({
               onDelete={onDelete}
               onHide={isSharedView ? onHide : undefined}
               onDuplicate={onDuplicate}
+              onSaveAsTemplate={onSaveAsTemplate}
               onMoveToCollection={onMoveToCollection}
               onClick={(id, event) => {
                 if (

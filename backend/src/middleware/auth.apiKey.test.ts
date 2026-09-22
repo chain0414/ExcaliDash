@@ -5,6 +5,65 @@ import { createAuthMiddleware } from "./auth";
 import { createDeps, createRequest, createResponse } from "./authTestHelpers";
 
 describe("auth middleware API key authentication", () => {
+  it("requires drawing read and write scopes for duplication", async () => {
+    const { prisma, authModeService } = createDeps();
+    authModeService.getAuthEnabled.mockResolvedValue(true);
+    const generated = generateApiKey();
+    const row = {
+      id: "api-key-duplicate", tokenHash: generated.tokenHash, revokedAt: null,
+      scopes: serializeApiKeyScopes(["drawings:write"]),
+      user: { id: "user-1", username: "user1", email: "user-1@test.local",
+        name: "User One", role: "USER", mustResetPassword: false, isActive: true },
+    };
+    prisma.apiKey.findUnique.mockResolvedValue(row);
+    prisma.apiKey.update.mockResolvedValue({});
+    const { requireAuth } = createAuthMiddleware({ prisma, authModeService });
+    const authorize = async () => {
+      const req = createRequest({ method: "POST", originalUrl: "/drawings/d1/duplicate",
+        headers: { authorization: `Bearer ${generated.token}` } });
+      const res = createResponse();
+      const next = vi.fn() as NextFunction;
+      await requireAuth(req, res, next);
+      return { res, next };
+    };
+    expect((await authorize()).res.status).toHaveBeenCalledWith(403);
+    row.scopes = serializeApiKeyScopes(["drawings:read"]);
+    expect((await authorize()).res.status).toHaveBeenCalledWith(403);
+    row.scopes = serializeApiKeyScopes(["drawings:read", "drawings:write"]);
+    expect((await authorize()).next).toHaveBeenCalledTimes(1);
+  });
+  it("requires template and drawing scopes for template-derived drawings", async () => {
+    const { prisma, authModeService } = createDeps();
+    authModeService.getAuthEnabled.mockResolvedValue(true);
+    const generated = generateApiKey();
+    const row = {
+      id: "api-key-1", tokenHash: generated.tokenHash, revokedAt: null,
+      scopes: serializeApiKeyScopes(["templates:write"]),
+      user: { id: "user-1", username: "user1", email: "user-1@test.local",
+        name: "User One", role: "USER", mustResetPassword: false, isActive: true },
+    };
+    prisma.apiKey.findUnique.mockResolvedValue(row);
+    prisma.apiKey.update.mockResolvedValue({});
+    const { requireAuth } = createAuthMiddleware({ prisma, authModeService });
+    const authorize = async (method: string, originalUrl: string) => {
+      const req = createRequest({ method, originalUrl, headers: { authorization: `Bearer ${generated.token}` } });
+      const res = createResponse();
+      const next = vi.fn() as NextFunction;
+      await requireAuth(req, res, next);
+      return { res, next };
+    };
+    expect((await authorize("POST", "/templates/dummy/create-drawing")).res.status).toHaveBeenCalledWith(403);
+    row.scopes = serializeApiKeyScopes(["templates:write", "drawings:write"]);
+    expect((await authorize("POST", "/templates/dummy/create-drawing")).next).toHaveBeenCalledTimes(1);
+    expect((await authorize("POST", "/templates")).res.status).toHaveBeenCalledWith(403);
+    row.scopes = serializeApiKeyScopes(["templates:write", "drawings:read"]);
+    expect((await authorize("POST", "/templates")).next).toHaveBeenCalledTimes(1);
+    expect((await authorize("PUT", "/templates/dummy")).next).toHaveBeenCalledTimes(1);
+    expect((await authorize("GET", "/templates/dummy")).res.status).toHaveBeenCalledWith(403);
+    row.scopes = serializeApiKeyScopes(["templates:read"]);
+    expect((await authorize("GET", "/templates/dummy")).next).toHaveBeenCalledTimes(1);
+    expect((await authorize("PUT", "/templates/dummy")).res.status).toHaveBeenCalledWith(403);
+  });
   it("attaches active user for valid API key", async () => {
     const { prisma, authModeService } = createDeps();
     authModeService.getAuthEnabled.mockResolvedValue(true);

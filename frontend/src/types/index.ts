@@ -14,6 +14,18 @@ export interface Drawing extends DrawingSummary {
   appState: any;
   files: Record<string, any> | null;
 }
+export interface DrawingTemplate {
+  id: string;
+  name: string;
+  preview: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface DrawingTemplateDetail extends DrawingTemplate {
+  elements: any[];
+  appState: Record<string, any>;
+  files: Record<string, any>;
+}
 export interface Collection {
   id: string;
   name: string;

@@ -21,6 +21,9 @@ model User {
   preferences         String?
   authIdentities      AuthIdentity[]
   drawings            Drawing[]
+  templates           Template[]
+  assets              Asset[]
+  assetUsages         AssetUsage[]
   collections         Collection[]
   drawingPermissions  DrawingPermission[]
   collectionShares    CollectionShare[]
@@ -85,6 +88,63 @@ model Drawing {
 
   @@index([userId, updatedAt])
   @@index([userId, collectionId, updatedAt])
+}
+
+// A template is an owned, immutable scene snapshot. Its files JSON contains
+// self-contained data URLs, so deleting or editing the source drawing cannot
+// change future drawings created from this template.
+model Template {
+  id        String   @id @default(uuid())
+  name      String
+  elements  String
+  appState  String
+  files     String   @default("{}")
+  preview   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+}
+
+// User-owned, self-contained SVG components. Search text is normalized at
+// write time so Chinese aliases and English names are queried together.
+model Asset {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  source     String
+  sourceUrl  String?
+  license    String
+  aliasesZh  String   @default("[]")
+  aliasesEn  String   @default("[]")
+  tags       String   @default("[]")
+  searchText String
+  svg        String
+  sha256     String
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  usages     AssetUsage[]
+
+  @@unique([userId, source, name])
+  @@index([userId, sha256])
+  @@index([userId, name])
+  @@index([userId, createdAt])
+}
+
+model AssetUsage {
+  userId     String
+  assetId    String
+  count      Int      @default(0)
+  lastUsedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([userId, assetId])
+  @@index([userId, count])
 }
 
 model DrawingSnapshot {
