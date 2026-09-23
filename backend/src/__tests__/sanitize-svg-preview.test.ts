@@ -52,3 +52,34 @@ describe("sanitizeSvg preview image hrefs (S3 rehydration)", () => {
     expect(out).not.toContain("<image");
   });
 });
+
+describe("sanitizeSvg preview local use references", () => {
+  const imageHref = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=";
+
+  it("preserves Excalidraw defs/image assets referenced by a local use", () => {
+    const out = sanitizeSvg(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <defs><image id="image-asset_78751c509a06089f1089" href="${imageHref}" width="100%" height="100%" /></defs>
+        <use href="#image-asset_78751c509a06089f1089" width="64" height="64" transform="translate(10 12)" />
+      </svg>`,
+    );
+
+    expect(out).toContain("<image");
+    expect(out).toContain("<use");
+    expect(out).toContain('href="#image-asset_78751c509a06089f1089"');
+  });
+
+  it.each([
+    "https://evil.example/asset.svg#icon",
+    "/api/files/drawing_1/file_abc",
+    "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=",
+    "javascript:alert(1)",
+  ])("removes a use with a non-local href: %s", (href) => {
+    const out = sanitizeSvg(
+      `<svg xmlns="http://www.w3.org/2000/svg"><use href="${href}" /></svg>`,
+    );
+
+    expect(out).not.toContain("<use");
+    expect(out).not.toContain(href);
+  });
+});
