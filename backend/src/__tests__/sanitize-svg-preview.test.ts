@@ -59,11 +59,12 @@ describe("sanitizeSvg preview local use references", () => {
   it("preserves Excalidraw defs/image assets referenced by a local use", () => {
     const out = sanitizeSvg(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-        <defs><image id="image-asset_78751c509a06089f1089" href="${imageHref}" width="100%" height="100%" /></defs>
+        <defs><symbol id="image-asset_78751c509a06089f1089"><image href="${imageHref}" width="100%" height="100%" /></symbol></defs>
         <use href="#image-asset_78751c509a06089f1089" width="64" height="64" transform="translate(10 12)" />
       </svg>`,
     );
 
+    expect(out).toContain('<symbol id="image-asset_78751c509a06089f1089">');
     expect(out).toContain("<image");
     expect(out).toContain("<use");
     expect(out).toContain('href="#image-asset_78751c509a06089f1089"');
