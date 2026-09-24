@@ -1,14 +1,14 @@
 import type { DrawingAsset } from "../../api/assets";
 
 export const CATEGORY_LABELS = [
-  "AI 与数据", "用户与产品",
+  "AI 与数据", "用户与产品", "品牌图标",
   "通用操作", "文件与知识", "数据与图表", "安全与设置", "沟通与社交",
   "科技与设备", "设计与创作", "工作与商务", "金融与购物",
   "旅行与生活", "媒体与娱乐", "人物与健康",
 ] as const;
 export type AssetCategory = typeof CATEGORY_LABELS[number];
 
-const PINNED_CATEGORY_COUNT = 9;
+const PINNED_CATEGORY_COUNT = 10;
 const CUSTOM_CATEGORIES: Record<string, AssetCategory> = {
   "wayne-ai-data": "AI 与数据",
   "wayne-users-product": "用户与产品",
@@ -51,7 +51,8 @@ for (const label of CATEGORY_LABELS) {
 }
 
 export const assetCategory = (asset: DrawingAsset): AssetCategory =>
-  CUSTOM_CATEGORIES[asset.source] ?? BY_PREFIX.get(asset.name.split("-")[0].toLowerCase()) ?? "通用操作";
+  asset.name.startsWith("brand-") ? "品牌图标"
+    : CUSTOM_CATEGORIES[asset.source] ?? BY_PREFIX.get(asset.name.split("-")[0].toLowerCase()) ?? "通用操作";
 
 export const assetSearchText = (asset: DrawingAsset) =>
   [asset.name, asset.source, ...(asset.aliasesZh ?? []), ...(asset.aliasesEn ?? []), ...(asset.tags ?? [])]

@@ -20,13 +20,13 @@ describe("asset catalog filtering", () => {
       .toEqual(["b", "a"]);
   });
 
-  it("pins the two new categories before the existing seven and shuffles only the rest", () => {
+  it("pins the brand category with the existing top categories and shuffles only the rest", () => {
     const first = shuffledCategoryOrder(() => 0);
     const second = shuffledCategoryOrder(() => 0.999);
-    const pinned = ["AI 与数据", "用户与产品", "通用操作", "文件与知识", "数据与图表", "安全与设置", "沟通与社交", "科技与设备", "设计与创作"];
-    expect(first.slice(0, 9)).toEqual(pinned);
-    expect(second.slice(0, 9)).toEqual(pinned);
-    expect(first.slice(9)).not.toEqual(second.slice(9));
+    const pinned = ["AI 与数据", "用户与产品", "品牌图标", "通用操作", "文件与知识", "数据与图表", "安全与设置", "沟通与社交", "科技与设备", "设计与创作"];
+    expect(first.slice(0, 10)).toEqual(pinned);
+    expect(second.slice(0, 10)).toEqual(pinned);
+    expect(first.slice(10)).not.toEqual(second.slice(10));
     expect(new Set(first)).toEqual(new Set(second));
   });
 
@@ -34,6 +34,13 @@ describe("asset catalog filtering", () => {
     expect(assetCategory({ ...icon("dashboard-grid"), source: "wayne-ai-data" })).toBe("AI 与数据");
     expect(assetCategory({ ...icon("user-check"), source: "wayne-users-product" })).toBe("用户与产品");
     expect(assetCategory(icon("dashboard-grid"))).toBe("数据与图表");
+  });
+
+  it("groups imported brands by their name across different licensed sources", () => {
+    for (const source of ["simple-icons", "arcticons", "wikimedia-commons"]) {
+      expect(assetCategory({ ...icon("brand-amap"), source })).toBe("品牌图标");
+    }
+    expect(assetCategory({ ...icon("youtube"), source: "simple-icons" })).toBe("通用操作");
   });
 
   it("pins the new categories in recommendations regardless of usage count", () => {

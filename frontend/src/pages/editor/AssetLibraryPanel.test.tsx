@@ -28,6 +28,20 @@ describe("AssetLibraryPanel", () => {
     fireEvent.click(screen.getByRole("tab", { name: "推荐" }));
     expect(labels().slice(1, 3)).toEqual(["AI 与数据", "用户与产品"]);
   });
+  it("shows imported brand icons in their own category", async () => {
+    mocked.catalog.mockResolvedValue([
+      { id: "brand", version: 1, name: "brand-amap", source: "arcticons", aliasesZh: ["高德地图"], usageCount: 0 },
+      { id: "normal", version: 1, name: "calendar", source: "streamline-freehand", usageCount: 0 },
+    ]);
+    mocked.previews.mockImplementation(async (ids: string[]) => ids.map((id) =>
+      ({ id, version: 1, dataURL: "data:image/svg+xml;base64,PHN2Zy8+" })));
+    render(<AssetLibraryPanel isOpen canEdit excalidrawAPIRef={{ current: {} }} onClose={vi.fn()} />);
+    const categoryBar = within(await screen.findByLabelText("图标分类"));
+    const brandCategory = await categoryBar.findByRole("button", { name: "品牌图标 1" });
+    fireEvent.click(brandCategory);
+    expect(screen.getByRole("button", { name: "插入 brand-amap" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "插入 calendar" })).toBeNull();
+  });
   it("filters locally, shows a zero-result state, and exposes categories and recommendations", async () => {
     mocked.previews.mockImplementation(async (ids: string[]) => ids.map((id) =>
       ({ id, version: 1, dataURL: "data:image/svg+xml;base64,PHN2Zy8+" })));
