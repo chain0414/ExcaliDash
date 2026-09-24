@@ -92,15 +92,32 @@ describe("AssetLibraryPanel", () => {
     mocked.previews.mockResolvedValue([
       { id: "brand", version: 1, dataURL: "data:image/svg+xml;base64,PHN2Zy8+" },
     ]);
-    mocked.detail.mockResolvedValue({ id: "brand", name: "brand-amap", dataURL: "data:image/svg+xml;base64,PHN2Zy8+" });
     mocked.insert.mockResolvedValue("element-id");
     mocked.use.mockReturnValue(new Promise(() => {}));
     render(<AssetLibraryPanel isOpen canEdit excalidrawAPIRef={{ current: {} }} onClose={vi.fn()} />);
 
     const icon = await screen.findByRole<HTMLButtonElement>("button", { name: "插入 brand-amap" });
+    await waitFor(() => expect(document.querySelectorAll("img")).toHaveLength(1));
     fireEvent.click(icon);
     await waitFor(() => expect(mocked.use).toHaveBeenCalledWith("brand"));
     expect(mocked.insert).toHaveBeenCalledTimes(1);
+    expect(mocked.detail).not.toHaveBeenCalled();
+    expect(mocked.insert.mock.calls[0][1]).toMatchObject({ id: "brand", dataURL: "data:image/svg+xml;base64,PHN2Zy8+" });
     await waitFor(() => expect(icon.disabled).toBe(false));
+  });
+
+  it("fetches SVG details when its preview has not loaded yet", async () => {
+    mocked.catalog.mockResolvedValue([
+      { id: "brand", version: 1, name: "brand-amap", source: "arcticons" },
+    ]);
+    mocked.previews.mockReturnValue(new Promise(() => {}));
+    mocked.detail.mockResolvedValue({ id: "brand", name: "brand-amap", mimeType: "image/svg+xml", dataURL: "data:image/svg+xml;base64,PHN2Zy8+" });
+    mocked.insert.mockResolvedValue("element-id");
+    mocked.use.mockResolvedValue({ usageCount: 1, lastUsedAt: "2026-09-24T00:00:00Z" });
+    render(<AssetLibraryPanel isOpen canEdit excalidrawAPIRef={{ current: {} }} onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "插入 brand-amap" }));
+    await waitFor(() => expect(mocked.insert).toHaveBeenCalledTimes(1));
+    expect(mocked.detail).toHaveBeenCalledWith("brand");
   });
 });

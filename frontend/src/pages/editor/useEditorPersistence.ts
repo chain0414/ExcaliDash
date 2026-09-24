@@ -297,6 +297,7 @@ export const useEditorPersistence = ({
       }
       const svg = await exportToSvg({
         elements: normalizedSnapshot,
+        skipInliningFonts: true,
         appState: {
           ...appState,
           exportBackground: true,

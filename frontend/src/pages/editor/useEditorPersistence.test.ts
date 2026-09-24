@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
+import { exportToSvg } from "@excalidraw/excalidraw";
 import { useEditorPersistence } from "./useEditorPersistence";
 
 vi.mock("@excalidraw/excalidraw", () => ({ exportToSvg: vi.fn() }));
@@ -168,5 +169,22 @@ describe("useEditorPersistence unmount flush", () => {
 
     unmount();
     await waitFor(() => expect(updateDrawing).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe("useEditorPersistence preview export", () => {
+  it("skips font inlining for the regenerable thumbnail", async () => {
+    vi.clearAllMocks();
+    vi.mocked(exportToSvg).mockResolvedValue({ outerHTML: "<svg/>" } as SVGSVGElement);
+    vi.mocked(api.updateDrawing).mockResolvedValue({ version: 2 } as any);
+    const refs = makeRefs();
+    const { result } = renderHook(() => useEditorPersistence(params(refs)));
+
+    await act(async () => {
+      await result.current.savePreviewRef.current?.("d1", els, {}, {});
+    });
+
+    expect(exportToSvg).toHaveBeenCalledWith(expect.objectContaining({ skipInliningFonts: true }));
+    expect(api.updateDrawing).toHaveBeenCalledWith("d1", { preview: "<svg/>" });
   });
 });

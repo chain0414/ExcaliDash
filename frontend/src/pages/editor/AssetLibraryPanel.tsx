@@ -105,7 +105,15 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
     setInsertingId(asset.id);
     let inserted = false;
     try {
-      const detail = await getDrawingAsset(asset.id);
+      const detailStartedAt = performance.now();
+      const cachedDataURL = previewCache[previewKey(asset)];
+      const detail = cachedDataURL
+        ? { ...asset, mimeType: "image/svg+xml" as const, dataURL: cachedDataURL }
+        : await getDrawingAsset(asset.id);
+      const detailMs = performance.now() - detailStartedAt;
+      if (detailMs > 1000) {
+        console.warn("[AssetLibrary] Slow asset detail request", { durationMs: Math.round(detailMs) });
+      }
       await insertDrawingAsset(excalidrawAPIRef.current, detail);
       inserted = true;
       toast.success(`已插入 ${asset.name}`);

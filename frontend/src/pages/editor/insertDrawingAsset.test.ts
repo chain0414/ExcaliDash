@@ -11,10 +11,7 @@ import { insertDrawingAsset } from "./insertDrawingAsset";
 describe("insertDrawingAsset", () => {
   beforeEach(() => {
     vi.stubGlobal("Image", class {
-      naturalWidth = 400;
-      naturalHeight = 200;
-      onload: (() => void) | null = null;
-      set src(_value: string) { queueMicrotask(() => this.onload?.()); }
+      constructor() { throw new Error("SVG dimensions should not decode an image"); }
     });
     vi.stubGlobal("crypto", { randomUUID: () => "embedded-file" });
   });
@@ -26,7 +23,7 @@ describe("insertDrawingAsset", () => {
       addFiles: vi.fn(),
       updateScene: vi.fn(),
     };
-    const dataURL = "data:image/svg+xml;base64,PHN2Zy8+";
+    const dataURL = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"></svg>')}`;
     await insertDrawingAsset(editor, {
       id: "catalog-item", name: "Compass", source: "test",
       mimeType: "image/svg+xml", dataURL,
@@ -49,5 +46,12 @@ describe("insertDrawingAsset", () => {
       id: "remote", name: "Remote", source: "test",
       mimeType: "image/svg+xml", dataURL: "https://example.com/icon.svg",
     })).rejects.toThrow("embedded SVG");
+  });
+
+  it("rejects an embedded SVG without a usable viewBox", async () => {
+    await expect(insertDrawingAsset({}, {
+      id: "invalid", name: "Invalid", source: "test",
+      mimeType: "image/svg+xml", dataURL: `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg"></svg>')}`,
+    })).rejects.toThrow("viewBox");
   });
 });
