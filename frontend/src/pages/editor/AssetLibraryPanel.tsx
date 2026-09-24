@@ -103,22 +103,22 @@ export const AssetLibraryPanel: React.FC<Props> = ({ isOpen, canEdit, excalidraw
   const insert = async (asset: DrawingAsset) => {
     if (!canEdit || !excalidrawAPIRef.current || insertingId) return;
     setInsertingId(asset.id);
+    let inserted = false;
     try {
       const detail = await getDrawingAsset(asset.id);
       await insertDrawingAsset(excalidrawAPIRef.current, detail);
+      inserted = true;
       toast.success(`已插入 ${asset.name}`);
-      try {
-        const usage = await recordDrawingAssetUse(asset.id);
-        setAssets((current) => current.map((item) => item.id === asset.id
-          ? { ...item, usageCount: usage.usageCount, lastUsedAt: usage.lastUsedAt } : item));
-      } catch {
-        toast.warning("图标已插入，使用记录暂未保存");
-      }
     } catch {
       toast.error("插入图标失败，请重试");
     } finally {
       setInsertingId(null);
     }
+    if (!inserted) return;
+    void recordDrawingAssetUse(asset.id)
+      .then((usage) => setAssets((current) => current.map((item) => item.id === asset.id
+        ? { ...item, usageCount: usage.usageCount, lastUsedAt: usage.lastUsedAt } : item)))
+      .catch(() => toast.warning("图标已插入，使用记录暂未保存"));
   };
 
   const card = (asset: DrawingAsset) => (

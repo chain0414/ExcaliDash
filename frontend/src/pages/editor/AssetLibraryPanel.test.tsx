@@ -84,4 +84,23 @@ describe("AssetLibraryPanel", () => {
     await waitFor(() => expect(view.container.querySelectorAll("img").length).toBe(120));
     expect(mocked.previews).toHaveBeenCalledTimes(firstCount + 1);
   });
+
+  it("re-enables icons after insertion while usage tracking is still pending", async () => {
+    mocked.catalog.mockResolvedValue([
+      { id: "brand", version: 1, name: "brand-amap", source: "arcticons", usageCount: 0 },
+    ]);
+    mocked.previews.mockResolvedValue([
+      { id: "brand", version: 1, dataURL: "data:image/svg+xml;base64,PHN2Zy8+" },
+    ]);
+    mocked.detail.mockResolvedValue({ id: "brand", name: "brand-amap", dataURL: "data:image/svg+xml;base64,PHN2Zy8+" });
+    mocked.insert.mockResolvedValue("element-id");
+    mocked.use.mockReturnValue(new Promise(() => {}));
+    render(<AssetLibraryPanel isOpen canEdit excalidrawAPIRef={{ current: {} }} onClose={vi.fn()} />);
+
+    const icon = await screen.findByRole<HTMLButtonElement>("button", { name: "插入 brand-amap" });
+    fireEvent.click(icon);
+    await waitFor(() => expect(mocked.use).toHaveBeenCalledWith("brand"));
+    expect(mocked.insert).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(icon.disabled).toBe(false));
+  });
 });
