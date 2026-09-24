@@ -26,3 +26,17 @@ server skips unchanged `(source, name)` entries. The import endpoint validates
 all SVGs in a batch before committing any of them. Chinese aliases are generated
 from a checked term glossary; all 1,000 entries have at least one Chinese term,
 but the aliases are search aids rather than full professional translations.
+
+## Brand icon catalog import
+
+The bundled `data/brand-icons.json.gz` contains 12 brand SVGs. See
+[the source and license notice](data/BRAND-NOTICE.md). Their `sourceUrl` fields
+identify the upstream sources; ExcaliDash stores the SVG bytes itself and does
+not load the artwork from those URLs when previewing or inserting icons.
+
+```sh
+python3 tools/import_brand_assets.py --dry-run
+python3 tools/import_brand_assets.py --key-file ~/.config/excalidash/api-key
+```
+
+The import is idempotent for each `(source, name)` pair.

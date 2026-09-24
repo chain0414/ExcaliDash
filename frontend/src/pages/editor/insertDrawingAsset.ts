@@ -45,7 +45,7 @@ export const insertDrawingAsset = async (editor: any, asset: DrawingAssetDetail)
     fileId: fileId as any,
     scale: [1, 1] as [number, number],
     status: "saved" as const,
-    link: asset.sourceUrl?.startsWith("https://") ? asset.sourceUrl : null,
+    link: null,
   }]);
   editor.updateScene({
     elements: [...editor.getSceneElementsIncludingDeleted(), element],

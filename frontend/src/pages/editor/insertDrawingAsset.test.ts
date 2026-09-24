@@ -39,7 +39,7 @@ describe("insertDrawingAsset", () => {
     expect(scene.elements).toHaveLength(2);
     expect(scene.elements[1]).toMatchObject({
       type: "image", fileId: "embedded-file", width: 260, height: 130,
-      link: "https://example.com/compass",
+      link: null,
     });
     expect(scene.appState.selectedElementIds).toEqual({ "new-image": true });
   });
