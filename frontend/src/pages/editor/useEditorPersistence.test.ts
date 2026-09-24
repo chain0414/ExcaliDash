@@ -59,17 +59,18 @@ describe("useEditorPersistence autosave indicator", () => {
     vi.clearAllMocks();
   });
 
-  it("raises autosaveFailing after repeated autosave failures and clears on success", async () => {
+  it("raises autosaveFailing on the first failure and clears on success", async () => {
     updateDrawing.mockRejectedValue(new Error("network"));
     const refs = makeRefs();
     const { result } = renderHook(() => useEditorPersistence(params(refs)));
 
     await act(async () => {
       await result.current.enqueueSceneSave("d1", els, {}, {});
-      await result.current.enqueueSceneSave("d1", els, {}, {});
     });
 
     await waitFor(() => expect(result.current.autosaveFailing).toBe(true));
+    const unsafeReload = new Event("beforeunload", { cancelable: true });
+    expect(window.dispatchEvent(unsafeReload)).toBe(false);
 
     // A subsequent successful save clears the indicator.
     updateDrawing.mockResolvedValue({ version: 2 } as any);
@@ -77,6 +78,106 @@ describe("useEditorPersistence autosave indicator", () => {
       await result.current.enqueueSceneSave("d1", els, {}, {});
     });
     await waitFor(() => expect(result.current.autosaveFailing).toBe(false));
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+  });
+
+  it("retries a network failure with the latest scene without another edit", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(api.isAxiosError).mockImplementation((error: any) => error?.isAxiosError === true);
+      updateDrawing
+        .mockRejectedValueOnce({ isAxiosError: true, code: "ERR_NETWORK" })
+        .mockResolvedValue({ version: 2 } as any);
+      const refs = makeRefs();
+      refs.latestElements.current = els;
+      refs.latestAppState.current = {};
+      const { result, unmount } = renderHook(() => useEditorPersistence(params(refs)));
+
+      await act(async () => {
+        await result.current.enqueueSceneSave("d1", els, {}, {});
+      });
+      expect(result.current.autosaveFailing).toBe(true);
+      expect(updateDrawing).toHaveBeenCalledTimes(1);
+
+      const newer = [{ id: "a", type: "rectangle", version: 2, x: 42 }];
+      refs.latestElements.current = newer;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+        await refs.saveQueue.current;
+      });
+
+      expect(updateDrawing).toHaveBeenCalledTimes(2);
+      expect(updateDrawing.mock.calls[1][1].elements).toEqual(newer);
+      expect(result.current.autosaveFailing).toBe(false);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a newer live edit when a queued save hits a version conflict", async () => {
+    vi.mocked(api.isAxiosError).mockImplementation((error: any) => error?.isAxiosError === true);
+    updateDrawing
+      .mockRejectedValueOnce({ isAxiosError: true, response: { status: 409 } })
+      .mockResolvedValue({ version: 3 } as any);
+    vi.mocked(api.getDrawing).mockResolvedValue({
+      version: 2,
+      elements: [{ id: "a", type: "rectangle", version: 1, updated: 1, x: 10 }],
+      files: {},
+    } as any);
+    const newer = [{ id: "a", type: "rectangle", version: 1, updated: 1, x: 42 }];
+    const refs = makeRefs();
+    refs.latestElements.current = newer;
+    refs.excalidrawAPI.current = {
+      getSceneElementsIncludingDeleted: () => newer,
+      getFiles: () => ({}),
+      updateScene: vi.fn(),
+      addFiles: vi.fn(),
+    };
+    const { result } = renderHook(() => useEditorPersistence(params(refs)));
+
+    await act(async () => {
+      await result.current.enqueueSceneSave("d1", [
+        { id: "a", type: "rectangle", version: 1, updated: 1, x: 10 },
+      ], {}, {}, { suppressErrors: false });
+    });
+
+    expect(updateDrawing.mock.calls[1][1].elements).toEqual(newer);
+    expect(refs.excalidrawAPI.current.updateScene).toHaveBeenCalledWith({ elements: newer });
+    expect(result.current.autosaveFailing).toBe(false);
+  });
+
+  it("retries after two consecutive version conflicts", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(api.isAxiosError).mockImplementation((error: any) => error?.isAxiosError === true);
+      updateDrawing
+        .mockRejectedValueOnce({ isAxiosError: true, response: { status: 409 } })
+        .mockRejectedValueOnce({ isAxiosError: true, response: { status: 409 } })
+        .mockResolvedValue({ version: 4 } as any);
+      vi.mocked(api.getDrawing).mockResolvedValue({
+        version: 2, elements: els, files: {},
+      } as any);
+      const refs = makeRefs();
+      refs.latestElements.current = els;
+      refs.latestAppState.current = {};
+      const { result, unmount } = renderHook(() => useEditorPersistence(params(refs)));
+
+      await act(async () => {
+        await result.current.enqueueSceneSave("d1", els, {}, {});
+      });
+      expect(result.current.autosaveFailing).toBe(true);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+        await refs.saveQueue.current;
+      });
+      expect(updateDrawing).toHaveBeenCalledTimes(3);
+      expect(result.current.autosaveFailing).toBe(false);
+      unmount();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -27,15 +27,24 @@ export const reloadAndReconcile = async (
   const remote = await api.getDrawing(drawingId);
   const remoteElements = Array.isArray(remote.elements) ? remote.elements : [];
   const remoteFiles = (remote.files as Record<string, any> | undefined) || {};
-  const mergedElements = reconcileElements(
-    Array.from(localElements),
-    remoteElements,
-  );
-  const mergedFiles = { ...remoteFiles, ...localFiles };
+  // The save that conflicted may have waited in the queue while the user kept
+  // editing. Read the live scene after the GET, otherwise resolving a 409 can
+  // visibly roll the canvas back to that older queued snapshot.
+  const editor = refs.excalidrawAPI.current;
+  const liveElements = editor?.getSceneElementsIncludingDeleted?.() ?? refs.latestElements.current;
+  const unsavedElements = reconcileElements(Array.from(localElements), liveElements);
+  // Newer remote versions win; on equal metadata, preserve the unsaved local
+  // edit because it has not yet reached the server.
+  const mergedElements = reconcileElements(remoteElements, unsavedElements);
+  const mergedFiles = {
+    ...remoteFiles,
+    ...localFiles,
+    ...refs.latestFiles.current,
+    ...(editor?.getFiles?.() ?? {}),
+  };
   if (typeof remote.version === "number") {
     refs.currentDrawingVersion.current = remote.version;
   }
-  const editor = refs.excalidrawAPI.current;
   if (editor) {
     refs.isSyncing.current = true;
     try {

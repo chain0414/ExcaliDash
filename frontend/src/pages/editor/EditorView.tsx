@@ -184,11 +184,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
         {canEdit && autosaveFailing ? (
           <span
             className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200 border border-red-200 dark:border-red-800"
-            title="Your recent changes could not be saved. Check your connection and try again."
+            title={langCode.startsWith("zh")
+              ? "画布修改尚未保存，请勿刷新或关闭页面；网络错误会自动重试。"
+              : "Changes are not saved. Keep this tab open; network errors retry automatically."}
             role="status"
           >
             <CloudOff size={14} />
-            Unsaved changes
+            {langCode.startsWith("zh") ? "修改未保存" : "Unsaved changes"}
           </span>
         ) : null}
         {!canEdit ? (

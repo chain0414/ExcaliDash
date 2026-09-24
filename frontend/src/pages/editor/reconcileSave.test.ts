@@ -75,4 +75,35 @@ describe("reloadAndReconcile (409 conflict recovery)", () => {
     // user edit.
     expect(refs.isSyncing.current).toBe(false);
   });
+
+  it("keeps edits made while an older save was in flight", async () => {
+    getDrawing.mockResolvedValue({
+      version: 7,
+      elements: [
+        { id: "same", version: 1, versionNonce: 1, updated: 1, x: 10 },
+        { id: "remote", version: 2 },
+      ],
+      files: {},
+    } as any);
+    const refs = makeRefs();
+    refs.excalidrawAPI.current = {
+      getSceneElementsIncludingDeleted: () => [
+        { id: "same", version: 1, versionNonce: 1, updated: 1, x: 30 },
+        { id: "new-local", version: 1 },
+      ],
+      getFiles: () => ({ "new-file": { id: "new-file" } }),
+      updateScene: vi.fn(),
+      addFiles: vi.fn(),
+    };
+
+    const result = await reloadAndReconcile(refs, "d1", [
+      { id: "same", version: 1, versionNonce: 1, updated: 1, x: 10 },
+    ], {});
+
+    expect(result.elements.find((element: any) => element.id === "same")?.x).toBe(30);
+    expect(result.elements.map((element: any) => element.id).sort()).toEqual([
+      "new-local", "remote", "same",
+    ]);
+    expect(result.files).toHaveProperty("new-file");
+  });
 });
