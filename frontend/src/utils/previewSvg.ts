@@ -65,6 +65,30 @@ export const previewHasEmbeddedImages = (
   preview: string | null | undefined
 ): boolean => typeof preview === "string" && /<image[\s>]/i.test(preview);
 
+/** Old server sanitization flattened mask rectangles into the SVG root. */
+export const previewHasFlattenedMasks = (preview: string | null | undefined): boolean => {
+  if (!preview || typeof DOMParser === "undefined") return false;
+  try {
+    const svg = new DOMParser().parseFromString(preview, "image/svg+xml").documentElement;
+    if (svg.tagName.toLowerCase() !== "svg" || svg.querySelector("mask")) return false;
+    // Excalidraw exports ordinary shapes as paths. A second direct SVG rect
+    // (or a direct rect in defs) is the content of a mask/clipPath that the
+    // old sanitizer removed while keeping its children. The first root rect
+    // is the normal canvas background.
+    const rootRects = Array.from(svg.children).filter((child) => child.tagName.toLowerCase() === "rect");
+    const orphanRootRect = rootRects.slice(1).some((child) => {
+      const fill = (child.getAttribute("fill") ?? "").toLowerCase();
+      return fill === "#fff" || fill === "#ffffff" || fill === "white";
+    });
+    const orphanDefRect = Array.from(svg.querySelectorAll("defs")).some((defs) =>
+      Array.from(defs.children).some((child) => child.tagName.toLowerCase() === "rect")
+    );
+    return orphanRootRect || orphanDefRect;
+  } catch {
+    return false;
+  }
+};
+
 export const normalizePreviewSvg = (preview: string | null | undefined): string | null => {
   if (typeof preview !== "string" || preview.trim().length === 0) {
     return preview ?? null;

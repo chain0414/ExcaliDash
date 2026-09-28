@@ -84,3 +84,27 @@ describe("sanitizeSvg preview local use references", () => {
     expect(out).not.toContain(href);
   });
 });
+
+describe("sanitizeSvg Excalidraw masks", () => {
+  it("keeps mask geometry inside defs instead of painting it over the drawing", () => {
+    const out = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <defs><mask id="text-mask"><rect x="0" y="0" width="100" height="100" fill="#fff" /><rect x="20" y="20" width="20" height="10" fill="#000" /></mask></defs>
+      <path d="M0 0H100V100H0Z" fill="#e7f5ff" mask="url(#text-mask)" />
+    </svg>`);
+
+    expect(out).toContain('<mask id="text-mask">');
+    expect(out).toContain('mask="url(#text-mask)"');
+    expect(out).toMatch(/<mask[^>]*>\s*<rect[^>]*fill="#fff"/);
+  });
+
+  it("keeps local clipping and strips non-local mask references", () => {
+    const out = sanitizeSvg(`<svg xmlns="http://www.w3.org/2000/svg">
+      <defs><clipPath id="clip-1"><rect x="0" y="0" width="10" height="10" /></clipPath></defs>
+      <path d="M0 0H10" clip-path="url(#clip-1)" mask="url(https://evil.example/mask)" />
+    </svg>`);
+
+    expect(out).toContain('<clipPath id="clip-1">');
+    expect(out).toContain('clip-path="url(#clip-1)"');
+    expect(out).not.toContain("evil.example");
+  });
+});

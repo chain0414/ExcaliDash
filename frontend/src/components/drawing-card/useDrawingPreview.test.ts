@@ -4,6 +4,9 @@ import * as api from "../../api";
 import { useDrawingPreview } from "./useDrawingPreview";
 import type { DrawingSummary } from "../../types";
 
+const exportToSvg = vi.fn();
+vi.mock("@excalidraw/excalidraw", () => ({ exportToSvg: (...args: any[]) => exportToSvg(...args) }));
+
 vi.mock("../../api", () => ({
   getDrawingPreview: vi.fn(),
   getDrawing: vi.fn(),
@@ -73,6 +76,17 @@ describe("useDrawingPreview", () => {
     await waitFor(() => {
       expect(getDrawingMock).toHaveBeenCalledWith("d1");
     });
+  });
+
+  it("regenerates a stored preview whose flattened masks cover its shapes", async () => {
+    const broken = '<svg viewBox="0 0 200 100"><rect x="0" y="0" width="200" height="100" fill="#f8f5ee"/><path d="M0 0H100V60" fill="#e7f5ff"/><rect x="0" y="0" width="150" height="90" fill="#fff"/><rect x="0" y="0" width="180" height="85" fill="#fff"/></svg>';
+    getDrawingPreviewMock.mockResolvedValue(broken);
+    getDrawingMock.mockResolvedValue({ id: "d1", elements: [{ type: "rectangle" }], appState: {}, files: {} } as any);
+    exportToSvg.mockResolvedValue({ outerHTML: "<svg>repaired</svg>" });
+
+    const { result } = renderHook(() => useDrawingPreview(makeSummary()));
+    await waitFor(() => expect(result.current.previewSvg).toBe("<svg>repaired</svg>"));
+    expect(getDrawingMock).toHaveBeenCalledWith("d1");
   });
 
   it("rehydrates a drawing card before providing its export data", async () => {

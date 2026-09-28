@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Drawing, DrawingSummary } from "../../types";
 import { prepareExportFiles } from "../../utils/exportUtils";
-import { previewHasEmbeddedImages } from "../../utils/previewSvg";
+import { previewHasEmbeddedImages, previewHasFlattenedMasks } from "../../utils/previewSvg";
 import * as api from "../../api";
 
 export type HydratedDrawingData = {
@@ -41,7 +41,7 @@ export const useDrawingPreview = (
   onPreviewGenerated?: (id: string, preview: string) => void,
 ) => {
   const [previewSvg, setPreviewSvg] = useState<string | null>(
-    drawing.preview ?? null,
+    previewHasFlattenedMasks(drawing.preview) ? null : drawing.preview ?? null,
   );
   const [fullData, setFullData] = useState<HydratedDrawingData | null>(null);
 
@@ -91,7 +91,7 @@ export const useDrawingPreview = (
 
   useEffect(() => {
     let cancelled = false;
-    if (drawing.preview) {
+    if (drawing.preview && !previewHasFlattenedMasks(drawing.preview)) {
       setPreviewSvg(drawing.preview);
       return;
     }
@@ -101,9 +101,9 @@ export const useDrawingPreview = (
       // client-side generation (which fetches full data) when the server has
       // no stored preview for this drawing.
       try {
-        const stored = await api.getDrawingPreview(drawing.id);
+        const stored = drawing.preview ?? await api.getDrawingPreview(drawing.id);
         if (cancelled) return;
-        if (stored) {
+        if (stored && !previewHasFlattenedMasks(stored)) {
           setPreviewSvg(stored);
           onPreviewGenerated?.(drawing.id, stored);
           return;
