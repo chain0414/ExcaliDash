@@ -191,6 +191,60 @@ describe("GET /drawings/:id/preview", () => {
     expect(second.status).toBe(304);
   });
 
+  it("does not load preview content when its ETag still matches", async () => {
+    prisma.drawing.findUnique.mockImplementation(async ({ select }: any) => {
+      if (select?.preview) throw new Error("Preview content must not be loaded");
+      return select?.userId
+        ? { userId: MOCK_USER_ID }
+        : { updatedAt: new Date("2026-05-02T00:00:00Z") };
+    });
+
+    const res = await request(app)
+      .get(`/drawings/${MOCK_DRAWING_ID}/preview`)
+      .set("If-None-Match", 'W/"preview-drawing-1-1777680000000"');
+
+    expect(res.status).toBe(304);
+    expect(res.text).toBe("");
+    expect(res.headers.etag).toBe('W/"preview-drawing-1-1777680000000"');
+  });
+
+  it("tags the returned content when the preview changes after revalidation", async () => {
+    prisma.drawing.findUnique.mockImplementation(async ({ select }: any) => {
+      if (select?.userId) return { userId: MOCK_USER_ID };
+      if (select?.preview) return {
+        preview: "<svg>new preview</svg>",
+        updatedAt: new Date("2026-05-03T00:00:00Z"),
+      };
+      return { updatedAt: new Date("2026-05-02T00:00:00Z") };
+    });
+
+    const res = await request(app)
+      .get(`/drawings/${MOCK_DRAWING_ID}/preview`)
+      .set("If-None-Match", 'W/"preview-drawing-1-1777593600000"');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      preview: "<svg>new preview</svg>",
+      updatedAt: 1777766400000,
+    });
+    expect(res.headers.etag).toBe('W/"preview-drawing-1-1777766400000"');
+  });
+
+  it("404s if the drawing disappears before content is loaded", async () => {
+    prisma.drawing.findUnique.mockImplementation(async ({ select }: any) => {
+      if (select?.userId) return { userId: MOCK_USER_ID };
+      if (select?.preview) return null;
+      return { updatedAt: new Date("2026-05-02T00:00:00Z") };
+    });
+
+    const res = await request(app)
+      .get(`/drawings/${MOCK_DRAWING_ID}/preview`)
+      .set("If-None-Match", 'W/"preview-drawing-1-1777593600000"');
+
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe("Drawing not found");
+  });
+
   it("404s for a drawing the caller cannot view", async () => {
     prisma.drawing.findUnique.mockResolvedValue({ userId: "someone-else" });
 

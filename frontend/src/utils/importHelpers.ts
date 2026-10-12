@@ -1,4 +1,3 @@
-import { exportToSvg } from "@excalidraw/excalidraw";
 import { api } from "../api";
 
 type ExcalidrawLikeData = {
@@ -83,6 +82,7 @@ export const makeSvgPreview = async (
   appState: Record<string, any>,
   files: Record<string, any>
 ) => {
+  const { exportToSvg } = await import("@excalidraw/excalidraw");
   return exportToSvg({
     elements,
     appState: {

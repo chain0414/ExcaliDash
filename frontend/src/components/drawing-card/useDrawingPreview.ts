@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Drawing, DrawingSummary } from "../../types";
 import { prepareExportFiles } from "../../utils/exportUtils";
 import { previewHasEmbeddedImages, previewHasFlattenedMasks } from "../../utils/previewSvg";
@@ -40,33 +40,38 @@ export const useDrawingPreview = (
   drawing: DrawingSummary,
   onPreviewGenerated?: (id: string, preview: string) => void,
 ) => {
-  const [previewSvg, setPreviewSvg] = useState<string | null>(
-    previewHasFlattenedMasks(drawing.preview) ? null : drawing.preview ?? null,
+  const hasFlattenedMasks = useMemo(
+    () => previewHasFlattenedMasks(drawing.preview),
+    [drawing.preview],
   );
-  const [fullData, setFullData] = useState<HydratedDrawingData | null>(null);
+  const [preview, setPreview] = useState(() => ({
+    drawingId: drawing.id,
+    svg: hasFlattenedMasks ? null : drawing.preview ?? null,
+  }));
+  const notifyRef = useRef(onPreviewGenerated);
+  notifyRef.current = onPreviewGenerated;
 
-  const fullDataRef = useRef(fullData);
-  fullDataRef.current = fullData;
-
-  const fullDataPromiseRef = useRef<Promise<HydratedDrawingData> | null>(null);
-  const drawingIdRef = useRef(drawing.id);
-  drawingIdRef.current = drawing.id;
-
-  useEffect(() => {
-    setFullData(null);
-    fullDataPromiseRef.current = null;
-  }, [drawing.id]);
+  const fullDataCacheRef = useRef<{
+    drawingId: string;
+    data: HydratedDrawingData | null;
+    promise: Promise<HydratedDrawingData> | null;
+  }>({ drawingId: drawing.id, data: null, promise: null });
+  if (fullDataCacheRef.current.drawingId !== drawing.id) {
+    fullDataCacheRef.current = { drawingId: drawing.id, data: null, promise: null };
+  }
+  // Each pending request closes over its own drawing's cache. A late response
+  // can complete an old export without populating the next drawing's cache.
+  const fullDataCache = fullDataCacheRef.current;
 
   const ensureFullData = useCallback(async (): Promise<HydratedDrawingData> => {
-    if (fullDataRef.current) {
-      return fullDataRef.current;
+    if (fullDataCache.data) {
+      return fullDataCache.data;
     }
-    if (fullDataPromiseRef.current) {
-      return fullDataPromiseRef.current;
+    if (fullDataCache.promise) {
+      return fullDataCache.promise;
     }
-    const currentDrawingId = drawingIdRef.current;
     const promise = api
-      .getDrawing(currentDrawingId)
+      .getDrawing(fullDataCache.drawingId)
       .then(async (fullDrawing) => {
         const files = await prepareExportFiles(
           fullDrawing.files || {},
@@ -77,35 +82,45 @@ export const useDrawingPreview = (
           appState: fullDrawing.appState || {},
           files,
         };
-        setFullData(payload);
-        fullDataPromiseRef.current = null;
+        fullDataCache.data = payload;
+        fullDataCache.promise = null;
         return payload;
       })
       .catch((error) => {
-        fullDataPromiseRef.current = null;
+        fullDataCache.promise = null;
         throw error;
       });
-    fullDataPromiseRef.current = promise;
+    fullDataCache.promise = promise;
     return promise;
-  }, []);
+  }, [fullDataCache]);
 
   useEffect(() => {
     let cancelled = false;
-    if (drawing.preview && !previewHasFlattenedMasks(drawing.preview)) {
-      setPreviewSvg(drawing.preview);
+    const updatePreview = (svg: string | null) => setPreview((current) =>
+      current.drawingId === drawing.id && current.svg === svg
+        ? current
+        : { drawingId: drawing.id, svg },
+    );
+    if (drawing.preview && !hasFlattenedMasks) {
+      updatePreview(drawing.preview);
       return;
     }
+    updatePreview(null);
+    const controller = new AbortController();
     const generatePreview = async () => {
       // Previews are no longer inlined in list responses. Prefer the cheap,
       // ETag-cacheable per-drawing preview endpoint; only fall back to
       // client-side generation (which fetches full data) when the server has
       // no stored preview for this drawing.
       try {
-        const stored = drawing.preview ?? await api.getDrawingPreview(drawing.id);
+        const stored = drawing.preview ?? await api.getDrawingPreview(drawing.id, controller.signal);
         if (cancelled) return;
-        if (stored && !previewHasFlattenedMasks(stored)) {
-          setPreviewSvg(stored);
-          onPreviewGenerated?.(drawing.id, stored);
+        const storedHasFlattenedMasks = drawing.preview != null
+          ? hasFlattenedMasks
+          : previewHasFlattenedMasks(stored);
+        if (stored && !storedHasFlattenedMasks) {
+          updatePreview(stored);
+          notifyRef.current?.(drawing.id, stored);
           return;
         }
       } catch {
@@ -136,8 +151,8 @@ export const useDrawingPreview = (
 
         if (cancelled) return;
         const previewHtml = svg.outerHTML;
-        setPreviewSvg(previewHtml);
-        onPreviewGenerated?.(drawing.id, previewHtml);
+        updatePreview(previewHtml);
+        notifyRef.current?.(drawing.id, previewHtml);
       } catch (e) {
         if (!cancelled) {
           console.error("Failed to generate preview", e);
@@ -147,8 +162,9 @@ export const useDrawingPreview = (
     generatePreview();
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [drawing.id, drawing.preview, ensureFullData, onPreviewGenerated]);
+  }, [drawing.id, drawing.preview, hasFlattenedMasks, ensureFullData]);
 
   const buildExportDrawing = useCallback(async (): Promise<Drawing> => {
     const data = await ensureFullData();
@@ -160,6 +176,9 @@ export const useDrawingPreview = (
     };
   }, [drawing, ensureFullData]);
 
+  const previewSvg = preview.drawingId === drawing.id
+    ? preview.svg
+    : hasFlattenedMasks ? null : drawing.preview ?? null;
   return {
     previewSvg,
     hasEmbeddedImages: previewHasEmbeddedImages(previewSvg),

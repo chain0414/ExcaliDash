@@ -1,13 +1,10 @@
 import express from "express";
 import { Prisma } from "../../generated/client";
-import {
-  canViewDrawing,
-  getDrawingAccess,
-  normalizeDrawingPermission,
-} from "../../authz/sharing";
+import { normalizeDrawingPermission } from "../../authz/sharing";
 import { getUserTrashCollectionId, toPublicTrashCollectionId } from "./trash";
 import { SortDirection, SortField } from "./types";
 import type { DrawingRouteContext } from "./drawingRouteContext";
+import { registerDrawingPreviewRoutes } from "./drawingPreviewRoutes";
 
 // Server-side page size applied when a client omits `limit`, so the list
 // endpoints can never return an unbounded payload (previously every drawing,
@@ -21,11 +18,8 @@ export const registerDrawingListRoutes = (
   const {
     prisma,
     requireAuth,
-    optionalAuth,
     asyncHandler,
     parseJsonField,
-    getRequestPrincipal,
-    respondWithAuthErrorIfPresent,
     buildDrawingsCacheKey,
     getCachedDrawingsBody,
     cacheDrawingsResponse,
@@ -217,46 +211,7 @@ export const registerDrawingListRoutes = (
     }),
   );
 
-  // Per-drawing preview: small, ETag-cacheable, revalidates against updatedAt.
-  // Registered before `/drawings/:id` so previews aren't treated as an id.
-  app.get(
-    "/drawings/:id/preview",
-    optionalAuth,
-    asyncHandler(async (req, res) => {
-      const principal = await getRequestPrincipal(req);
-      const { id } = req.params;
-
-      const access = await getDrawingAccess({ prisma, principal, drawingId: id });
-      if (!canViewDrawing(access)) {
-        if (respondWithAuthErrorIfPresent(req, res)) return;
-        return res.status(404).json({
-          error: "Drawing not found",
-          message: "Drawing does not exist",
-        });
-      }
-
-      const drawing = await prisma.drawing.findUnique({
-        where: { id },
-        select: { preview: true, updatedAt: true },
-      });
-      if (!drawing) {
-        return res.status(404).json({
-          error: "Drawing not found",
-          message: "Drawing does not exist",
-        });
-      }
-
-      const updatedAtMs = new Date(drawing.updatedAt).getTime();
-      const etag = `W/"preview-${id}-${updatedAtMs}"`;
-      res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
-      res.setHeader("ETag", etag);
-      if (req.headers["if-none-match"] === etag) {
-        return res.status(304).end();
-      }
-
-      return res.json({ preview: drawing.preview ?? null, updatedAt: updatedAtMs });
-    }),
-  );
+  registerDrawingPreviewRoutes(app, context);
 
   // Shared with me list (does not mix into /drawings cache semantics)
   // Must be registered before `/drawings/:id` so it doesn't get treated as a drawing id.

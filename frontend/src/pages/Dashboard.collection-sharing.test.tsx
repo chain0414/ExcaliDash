@@ -80,6 +80,7 @@ describe("Dashboard - Collection Sharing Viewer Restrictions", () => {
       isLoading: false,
       hasMore: false,
       refreshData: vi.fn(),
+      refreshCollections: vi.fn(),
       fetchMore: vi.fn(),
     });
   });

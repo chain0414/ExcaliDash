@@ -114,6 +114,7 @@ export type DrawingSortField = "name" | "createdAt" | "updatedAt";
 export type SortDirection = "asc" | "desc";
 
 type DrawingQueryOptions = {
+  signal?: AbortSignal;
   includeData?: boolean;
   limit?: number;
   offset?: number;
@@ -156,10 +157,10 @@ export async function getDrawings(
   const params = buildDrawingParams(search, collectionId, options);
   if (options?.includeData) {
     params.includeData = "true";
-    const response = await api.get<PaginatedDrawings<Drawing>>("/drawings", { params });
+    const response = await api.get<PaginatedDrawings<Drawing>>("/drawings", { params, signal: options?.signal });
     return { ...response.data, drawings: response.data.drawings.map(deserializeDrawing) };
   }
-  const response = await api.get<PaginatedDrawings<DrawingSummary>>("/drawings", { params });
+  const response = await api.get<PaginatedDrawings<DrawingSummary>>("/drawings", { params, signal: options?.signal });
   return { ...response.data, drawings: response.data.drawings.map(deserializeDrawingSummary) };
 }
 
@@ -168,7 +169,7 @@ export async function getSharedDrawings(
   options?: Omit<DrawingQueryOptions, "includeData">,
 ): Promise<PaginatedDrawings<DrawingSummary>> {
   const params = buildDrawingParams(search, undefined, options);
-  const response = await api.get<PaginatedDrawings<DrawingSummary>>("/drawings/shared", { params });
+  const response = await api.get<PaginatedDrawings<DrawingSummary>>("/drawings/shared", { params, signal: options?.signal });
   return { ...response.data, drawings: response.data.drawings.map(deserializeDrawingSummary) };
 }
 
@@ -180,9 +181,10 @@ export const getDrawing = async (id: string) => {
 // Previews are no longer inlined into list responses; fetch them per-drawing.
 // The endpoint is ETag-cacheable (revalidates on updatedAt), so repeated calls
 // are cheap once the browser has a copy.
-export const getDrawingPreview = async (id: string): Promise<string | null> => {
+export const getDrawingPreview = async (id: string, signal?: AbortSignal): Promise<string | null> => {
   const response = await api.get<{ preview: string | null }>(
     `/drawings/${id}/preview`,
+    { signal },
   );
   const preview = response.data?.preview;
   return typeof preview === "string" ? normalizePreviewSvg(preview) : null;

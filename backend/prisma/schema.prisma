@@ -88,6 +88,7 @@ model Drawing {
 
   @@index([userId, updatedAt])
   @@index([userId, collectionId, updatedAt])
+  @@index([collectionId, updatedAt])
 }
 
 // A template is an owned, immutable scene snapshot. Its files JSON contains

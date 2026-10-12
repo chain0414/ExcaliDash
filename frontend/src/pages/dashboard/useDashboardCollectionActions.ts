@@ -7,6 +7,7 @@ type UseDashboardCollectionActionsParams = {
   setSelectedCollectionId: (id: string | null | undefined) => void;
   setCollections: React.Dispatch<React.SetStateAction<Collection[]>>;
   refreshData: () => void;
+  refreshCollections: () => Promise<void>;
 };
 
 export const useDashboardCollectionActions = ({
@@ -14,11 +15,12 @@ export const useDashboardCollectionActions = ({
   setSelectedCollectionId,
   setCollections,
   refreshData,
+  refreshCollections,
 }: UseDashboardCollectionActionsParams) => {
   const handleCreateCollection = async (name: string) => {
     try {
       await api.createCollection(name);
-      setCollections(await api.getCollections());
+      await refreshCollections();
     } catch (err) {
       console.error("Failed to create collection:", err);
       refreshData();

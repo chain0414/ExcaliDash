@@ -27,6 +27,9 @@ backend/prisma/.migration-lock/
 docker-compose.oidc.local.yml
 ops/keycloak/realm-excalidash-local.json
 
+# Private deployment notes
+/deploy.md
+
 # Uploads
 backend/uploads/
 

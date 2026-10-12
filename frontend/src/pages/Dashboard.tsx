@@ -75,6 +75,7 @@ export const Dashboard: React.FC = () => {
     isLoading,
     hasMore,
     refreshData,
+    refreshCollections,
     fetchMore,
   } = useDashboardData({
     debouncedSearch,
@@ -148,6 +149,7 @@ export const Dashboard: React.FC = () => {
     setSelectedCollectionId,
     setCollections,
     refreshData,
+    refreshCollections,
   });
   const viewTitle = React.useMemo(() => {
     if (selectedCollectionId === undefined) return "All Drawings";

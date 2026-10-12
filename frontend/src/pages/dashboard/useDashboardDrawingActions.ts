@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import * as api from "../../api";
 import type { Collection, DrawingSummary } from "../../types";
@@ -52,12 +52,16 @@ export const useDashboardDrawingActions = ({
   const currentCollection = collections.find(
     (collection) => collection.id === selectedCollectionId,
   );
-  const isSharedCollection = !!(
-    currentCollection && currentCollection.isOwner === false
-  );
-
+  // Drawing results can arrive before sidebar metadata. Keep unknown
+  // collection permissions restricted until the collection has loaded.
+  const isCollectionAccessUnknown = !!selectedCollectionId &&
+    !isTrashView && !isSharedView && !currentCollection;
+  const isSharedCollection = isCollectionAccessUnknown || currentCollection?.isOwner === false;
   const handleViewerActionError = (message: string) =>
-    showTemporaryViewerError(message, setViewerActionError);
+    showTemporaryViewerError(
+      isCollectionAccessUnknown ? "Collection permissions are not available yet" : message,
+      setViewerActionError,
+    );
 
   const handleCreateDrawing = async () => {
     if (isTrashView || isSharedView) return;
@@ -276,6 +280,14 @@ export const useDashboardDrawingActions = ({
     event.preventDefault();
     event.stopPropagation();
     if (isSharedView) return;
+    if (targetCollectionId && targetCollectionId !== "trash") {
+      const targetCollection = collections.find((collection) => collection.id === targetCollectionId);
+      if (!targetCollection ||
+        (targetCollection.isOwner === false && targetCollection.sharedRole !== "edit")) {
+        handleViewerActionError("Collection permissions do not allow importing or moving drawings");
+        return;
+      }
+    }
     if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
       const files = Array.from(event.dataTransfer.files);
       const libFiles = files.filter((file) =>
@@ -343,13 +355,15 @@ export const useDashboardDrawingActions = ({
     if (preview) event.dataTransfer.setDragImage(preview, 80, 50);
   };
 
-  const handlePreviewGenerated = (id: string, preview: string) => {
-    setDrawings((current) =>
-      current.map((drawing) =>
-        drawing.id === id ? { ...drawing, preview } : drawing,
-      ),
-    );
-  };
+  const handlePreviewGenerated = useCallback((id: string, preview: string) => {
+    setDrawings((current) => {
+      const index = current.findIndex((drawing) => drawing.id === id);
+      if (index === -1 || current[index].preview === preview) return current;
+      const next = [...current];
+      next[index] = { ...current[index], preview };
+      return next;
+    });
+  }, [setDrawings]);
 
   return {
     drawingToDelete,
